@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歴史と文学のみち第1回景観WS 市民意見マップ</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Helvetica Neue', Arial, 'ヒラギノ角ゴ Pro W3', 'メイリオ', sans-serif; overflow: hidden; background: #ffffff; }
+        #map { width: 100vw; height: 100vh; background: #f0f0f0; }
+
+        .leaflet-tile-pane { filter: contrast(92%) brightness(103%); }
+
+        /* --------------------------------------------------
+           方位マーク・スケールバー（通常時：左下）
+        -------------------------------------------------- */
+        .leaflet-bottom.leaflet-left {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-left: 20px;
+            margin-bottom: 20px;
+            z-index: 9999;
+            transition: all 0.2s ease;
+        }
+
+        .compass-rose {
+            width: 36px; height: 36px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 14px; font-weight: bold; color: #2c3e50;
+            margin-bottom: 6px; border: 2px solid #ddd;
+            user-select: none; position: relative;
+        }
+        .compass-rose::after {
+            content: '▲'; font-size: 8px; position: absolute;
+            top: 2px; color: #e74c3c;
+        }
+
+        .leaflet-control-scale-line {
+            border: 2px solid #333 !important; border-top: none !important;
+            background: rgba(255, 255, 255, 0.9) !important; color: #222 !important;
+            font-weight: bold !important; font-size: 10px !important; padding: 1px 5px !important;
+        }
+
+        /* --------------------------------------------------
+           独立操作ボタン群（画面左上：縦並び配置）
+        -------------------------------------------------- */
+        .top-left-tools {
+            position: fixed; top: 15px; left: 15px; z-index: 10000;
+            display: flex; flex-direction: column; gap: 6px;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 8px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.18);
+            border: 1px solid rgba(0,0,0,0.1);
+            width: 155px; box-sizing: border-box;
+        }
+
+        /* 拡大縮小ボタン（＋/ー）の位置調整 */
+        .leaflet-top.leaflet-left {
+            top: 150px !important;
+            left: 5px !important;
+        }
+
+        .tool-btn {
+            padding: 7px 10px; color: #fff; border: none; border-radius: 5px;
+            font-size: 11px; font-weight: bold; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+            white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 4px;
+            width: 100%; box-sizing: border-box;
+        }
+        .btn-capture { background: #e67e22; }
+        .btn-capture:hover { background: #d35400; }
+        .btn-bubble { background: #2c3e50; }
+        .btn-bubble:hover { background: #34495e; }
+        .btn-bubble.active { background: #2980b9; }
+        .btn-radar { background: #16a085; }
+        .btn-radar:hover { background: #117864; }
+        .btn-radar.off { background: #7f8c8d; }
+
+        /* --------------------------------------------------
+           右上：レイヤーコントロールパネル
+        -------------------------------------------------- */
+        .layer-control-panel {
+            position: fixed; top: 15px; right: 15px; z-index: 10000;
+            background: rgba(255, 255, 255, 0.96); padding: 10px 12px;
+            border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            width: 290px; box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        .layer-control-panel h4 {
+            margin: 0 0 6px 0; font-size: 13px; color: #2c3e50;
+            border-bottom: 2px solid #34495e; padding-bottom: 4px;
+        }
+
+        .category-group { margin-bottom: 6px; border-bottom: 1px dotted #e0e0e0; padding-bottom: 4px; }
+        .category-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .parent-label { font-size: 12px; font-weight: bold; color: #2c3e50; cursor: pointer; display: flex; align-items: center; }
+        .parent-label input { margin-right: 4px; cursor: pointer; }
+
+        .sub-list { margin-left: 12px; margin-top: 2px; }
+        .sub-item-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+        .sub-label { font-size: 11px; color: #333; cursor: pointer; display: flex; align-items: center; flex-grow: 1; line-height: 1.1; }
+        .sub-label input { margin-right: 4px; cursor: pointer; }
+        .sub-count { font-size: 9px; color: #777; margin-left: 2px; }
+        
+        .shape-badge {
+            width: 12px; height: 12px; display: inline-flex; align-items: center; justify-content: center;
+            margin-right: 4px; flex-shrink: 0;
+        }
+
+        .row-action-btns { display: flex; gap: 3px; flex-shrink: 0; }
+
+        .analysis-toggle-btn {
+            background: #ffffff; border: 1px solid #bdc3c7; border-radius: 4px;
+            padding: 1px 4px; font-size: 10px; color: #555; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; gap: 2px;
+        }
+        .analysis-toggle-btn:hover { background: #e8f8f5; border-color: #27ae60; color: #27ae60; }
+        .analysis-toggle-btn.active { background: #27ae60; border-color: #27ae60; color: #ffffff; font-weight: bold; }
+
+        .help-btn {
+            background: #f0f3f4; border: 1px solid #bdc3c7; border-radius: 50%;
+            width: 16px; height: 16px; font-size: 10px; line-height: 14px; text-align: center;
+            color: #7f8c8d; cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+        }
+        .help-btn:hover { background: #3498db; color: #fff; border-color: #3498db; }
+
+        .area-legend-box {
+            margin-top: 6px;
+            padding-top: 4px;
+            border-top: 2px solid #34495e;
+            font-size: 10px;
+            color: #333;
+        }
+        .area-legend-item { display: flex; align-items: center; margin-top: 3px; }
+        .area-legend-badge {
+            width: 16px; height: 10px; border: 2px dashed #e74c3c;
+            background-color: rgba(0, 0, 0, 0.05); margin-right: 6px; flex-shrink: 0;
+        }
+
+        /* --------------------------------------------------
+           キャプチャ撮影時専用スタイル
+        -------------------------------------------------- */
+        body.is-capturing .top-left-tools,
+        body.is-capturing .leaflet-control-zoom,
+        body.is-capturing .help-btn,
+        body.is-capturing .analysis-toggle-btn,
+        body.is-capturing .category-group.hide-in-legend {
+            display: none !important;
+        }
+
+        /* --------------------------------------------------
+           傾向分析①：太め半透明曲線＋引き出し線＋四角い細枠カード
+        -------------------------------------------------- */
+        .analysis-leader-card {
+            width: 200px;
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 5px;
+            padding: 8px 10px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            font-size: 10.5px;
+            line-height: 1.4;
+            color: #2c3e50;
+            pointer-events: auto;
+        }
+        .analysis-card-title-bar {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 4px;
+            padding-bottom: 3px;
+            border-bottom: 1px dashed rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.45); z-index: 999999; justify-content: center; align-items: center; }
+        .modal-card { background: #ffffff; width: 320px; padding: 18px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: popIn 0.2s ease-out; }
+        @keyframes popIn { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-title { font-size: 14px; font-weight: bold; color: #2c3e50; margin-bottom: 8px; display: flex; align-items: center; }
+        .modal-desc { font-size: 12px; color: #444; line-height: 1.5; background: #f8f9f9; padding: 10px; border-radius: 6px; border-left: 4px solid #3498db; }
+        .modal-close-btn { margin-top: 12px; width: 100%; padding: 7px; background: #34495e; color: #fff; border: none; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .modal-close-btn:hover { background: #2c3e50; }
+
+        /* --------------------------------------------------
+           マーカー基盤・吹き出し
+        -------------------------------------------------- */
+        .custom-marker-container { position: relative; width: 0px; height: 0px; }
+        .radar-pulse { position: absolute; top: -6px; left: -6px; width: 12px; height: 12px; border-radius: 50%; z-index: 90; }
+        .radar-pulse::before {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 100%; height: 100%; border-radius: 50%;
+            transform: translate(-50%, -50%); animation: pulse-radar 2.0s infinite ease-out; pointer-events: none;
+        }
+        body.radar-off .radar-pulse::before, body.is-capturing .radar-pulse::before { display: none !important; }
+        @keyframes pulse-radar {
+            0% { width: 12px; height: 12px; opacity: 0.9; box-shadow: 0 0 0 0px currentColor; }
+            70% { width: 38px; height: 38px; opacity: 0.0; box-shadow: 0 0 0 14px currentColor; }
+            100% { opacity: 0; }
+        }
+        .radar-shape {
+            position: absolute; top: -11px; left: -11px; width: 22px; height: 22px; z-index: 100;
+            pointer-events: auto; cursor: pointer; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.4));
+            display: flex; justify-content: center; align-items: center;
+        }
+        .speech-bubble-wrapper {
+            display: none; position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+            animation: float-anim 2.5s ease-in-out infinite; z-index: 200; transition: transform 0.2s ease;
+        }
+        @keyframes float-anim { 0% { transform: translateX(-50%) translateY(0px); } 50% { transform: translateX(-50%) translateY(-5px); } 100% { transform: translateX(-50%) translateY(0px); } }
+        .show-bubbles .speech-bubble-wrapper { display: block; }
+        body.is-capturing .speech-bubble-wrapper { animation: none !important; }
+
+        .speech-bubble {
+            position: relative; width: 112px; height: 70px; border-radius: 8px; padding: 6px 8px; box-sizing: border-box;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25); cursor: pointer; display: flex; flex-direction: column; justify-content: flex-start;
+            transition: transform 0.2s ease, width 0.25s ease, height 0.25s ease, box-shadow 0.2s ease;
+        }
+        .bubble-tip-svg { position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); width: 14px; height: 9px; pointer-events: none; }
+        .leaflet-marker-icon.hovered { z-index: 88888 !important; }
+        .leaflet-marker-icon.hovered .speech-bubble-wrapper { animation: none; }
+        .leaflet-marker-icon.hovered .speech-bubble { transform: scale(1.15); box-shadow: 0 8px 20px rgba(0,0,0,0.35); background-color: rgba(255, 255, 255, 0.98) !important; }
+
+        .bubble-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .bubble-tag { font-size: 10px; font-weight: bold; color: #ffffff; padding: 2px 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .bubble-id { display: none; font-size: 11px; font-weight: bold; color: #444; }
+        .bubble-comment { font-size: 11px; font-weight: 500; color: #111111; line-height: 1.3; text-align: left; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-all; }
+        .bubble-meta { display: none; font-size: 11px; color: #555555; text-align: right; border-top: 1px dotted rgba(0, 0, 0, 0.25); margin-top: 6px; padding-top: 4px; }
+
+        .leaflet-marker-icon.active { z-index: 99999 !important; }
+        .leaflet-marker-icon.active .speech-bubble-wrapper { display: block !important; animation: none; }
+        .leaflet-marker-icon.active .speech-bubble { width: 230px; height: auto; min-height: 95px; padding: 9px 11px; box-shadow: 0 10px 24px rgba(0,0,0,0.4); transform: scale(1) !important; background-color: rgba(255, 255, 255, 0.96) !important; }
+        .leaflet-marker-icon.active .bubble-id { display: inline-block; }
+        .leaflet-marker-icon.active .bubble-comment { display: block; font-size: 13px; font-weight: 600; line-height: 1.45; margin-top: 4px; -webkit-line-clamp: unset; overflow: visible; }
+        .leaflet-marker-icon.active .bubble-meta { display: block; }
+
+        .custom-bubble-icon { background: none !important; border: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- 独立ツールバー（画面左上：縦並び配置） -->
+<div class="top-left-tools">
+    <button class="tool-btn btn-capture" onclick="downloadMapImage()">📷 画像として保存</button>
+    <button id="toggleBubbleBtn" class="tool-btn btn-bubble" onclick="toggleAllBubbles()">💬 吹き出しを表示</button>
+    <button id="toggleRadarBtn" class="tool-btn btn-radar" onclick="toggleRadarAnimation()">📡 アニメーション ON/OFF</button>
+</div>
+
+<!-- レイヤーコントロールパネル（画面右上） -->
+<div class="layer-control-panel" id="layerPanel">
+    <h4 id="panelTitle">表示レイヤー選択</h4>
+    <div id="layerTreeContainer"></div>
+
+    <div class="area-legend-box">
+        <b>【地図上の範囲線】</b>
+        <div class="area-legend-item">
+            <span class="area-legend-badge"></span>
+            <span>ワークショップで使用した模型の範囲</span>
+        </div>
+    </div>
+</div>
+
+<div id="descModal" class="modal-overlay" onclick="closeModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-title">
+            <span id="modalBadge" class="shape-badge"></span>
+            <span id="modalTitle">細分類名</span>
+        </div>
+        <div id="modalDesc" class="modal-desc">説明文がここに表示されます。</div>
+        <button class="modal-close-btn" onclick="closeModal()">閉じる</button>
+    </div>
+</div>
+
+<script>
+    // 1. 地図初期化
+    var map = L.map('map', {
+        maxZoom: 21,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5
+    }).setView([32.9590, 131.8920], 16);
+    
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+        attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院</a>",
+        maxNativeZoom: 18,
+        maxZoom: 21
+    }).addTo(map);
+
+    L.control.scale({ imperial: false, metric: true, position: 'bottomleft' }).addTo(map);
+    var compassDiv = document.createElement('div');
+    compassDiv.className = 'compass-rose';
+    compassDiv.innerText = 'N';
+    document.querySelector('.leaflet-bottom.leaflet-left').prepend(compassDiv);
+
+    // 2. マスク＆境界線
+    var canvasRenderer = L.canvas({ padding: 0.5 });
+    var targetArea = [ [32.955583, 131.894881], [32.956656, 131.895917], [32.958244, 131.893881], [32.961958, 131.896911], [32.964892, 131.892653], [32.958361, 131.886550], [32.955750, 131.890550] ];
+    var outerBounds = [[90, -180], [90, 180], [-90, 180], [-90, -180]];
+
+    L.polygon([outerBounds, targetArea], {
+        renderer: canvasRenderer, color: '#333', fillColor: '#000', fillOpacity: 0.32, stroke: false
+    }).addTo(map);
+
+    var targetPolygon = L.polygon(targetArea, {
+        renderer: canvasRenderer, color: '#e74c3c', weight: 2, dashArray: '5, 5', fill: false
+    }).addTo(map);
+
+    // 3. マスタ定義 ＋ 定性分析解説
+    var subCategoryMaster = {
+        "好きな景色・場所": {
+            "公共施設・広場": { 
+                desc: "桜ホール、こども園、公園など", color: "#27ae60",
+                analysis: "桜ホール周辺にプロットが集中。「交流できる」「ガラスが開放的」など、近年の施設整備と広場が市民の憩い・交流拠点として定着。"
+            },
+            "自然・季節": { 
+                desc: "桜、動物、川など", color: "#e84393",
+                analysis: "山際通りの桜並木や城山周辺に分布。「春に桜が舞う様子」や「川の涼しさ」など日常生活の四季を感じる自然空間が高評価。"
+            },
+            "眺望・ビュースポット": { 
+                desc: "頂上からの景色、見下ろすまちなど", color: "#00cec9",
+                analysis: "城山頂上周辺に極めて強く集中。「四国まで見渡せる」「佐伯市が一望できる」など地域を象徴する一番の愛着・誇りの場。"
+            },
+            "賑わい・グルメ": { 
+                desc: "お祭り、カフェ、人が集まる様子", color: "#f1c40f",
+                analysis: "桜ホール・商店街周辺に点在。「お祭りの雰囲気」や「カフェ・飲食店」など人が集まり食を楽しむ日常的な活気が評価されている。"
+            },
+            "歴史的町並み": { 
+                desc: "石畳、やぐら門、古民家など", color: "#d35400",
+                analysis: "「歴史と文学の道」沿いに美しく連続。やぐら門・白壁・石畳が佐伯の城下町らしい風情を象徴する核心部分として定着。"
+            }
+        },
+        "課題": {
+            "管理・衛生不足": { 
+                desc: "虫、トイレが汚い、草ボーボーなど", color: "#8e44ad",
+                analysis: "城山周辺や公共トイレ・駐車場付近に散在。「虫の発生」「トイレの老朽化・臭い」「雑草の繁茂」など日常の管理不満が目立つ。"
+            },
+            "景観の阻害": { 
+                desc: "電柱、邪魔な木、古い建物など視覚的な問題", color: "#e67e22",
+                analysis: "歴史と文学の道全域に点在。「電柱・電線が目立つ」「植栽が邪魔で櫓門が見えにくい」など景観の純度を損なう要素への指摘。"
+            },
+            "交通の危険性": { 
+                desc: "交差点、スピード、車との交錯など", color: "#c0392b",
+                analysis: "変形交差点や城山駐車場入口、通学路に集中。「スピード出し過ぎ」「歩車分離の不足」など安全上の危険性が浮き彫りに。"
+            },
+            "歩行空間の不良": { 
+                desc: "凸凹、狭い、段差、ガタガタなど物理的な道の問題", color: "#fdcb6e",
+                analysis: "石畳の通りや細い歩道に多数集中。「歩道が狭い」「根上がりや雨天時の石畳で滑る・躓く」などバリアが顕著。"
+            },
+            "魅力・機能不足": { 
+                desc: "目的地がない、寂しい、店がないなど", color: "#6c5ce7",
+                analysis: "城下町エリア全体に点在。「滞在する目的地がない」「シャッター街化」「駐車場案内のわかりにくさ」など回遊性の低さが課題。"
+            }
+        },
+        "夜間景観": {
+            "課題（暗さ・危険性）": { 
+                desc: "暗い、怖い、寂しいなど", color: "#2d3436",
+                analysis: "桜ホール背後の小道や城山登山道、養賢寺付近に集中。街灯が少なく「暗くて怖い」という夜間の安心感不足が指摘されている。"
+            },
+            "要望（照らしてほしい）": { 
+                desc: "ライトアップしてほしい、照明を統一してほしいなど", color: "#f39c12",
+                analysis: "櫓門、石垣、桜並木に集積。統一感ある温かい照明演出や、幻想的なライトアップによる夜間魅力の向上に大きな期待。"
+            },
+            "良い点（魅力）": { 
+                desc: "ライトアップが綺麗、夜景が良いなど", color: "#0984e3",
+                analysis: "桜ホールの水辺イルミや城山頂上からの夜景に好評が集中。近年演出された夜景スポットが新しい地域の魅力として浸透。"
+            }
+        },
+        "要望・アイデア": {
+            "イベント・ソフト事業": { 
+                desc: "祭り、アート、マンホールなど", color: "#9b59b6",
+                analysis: "観光交流館や歴史資料館周辺にプロット。「フリマ」「路面アート」「ポケモンマンホール」等、若者や家族を呼ぶソフト施策を要望。"
+            },
+            "休憩・滞在空間": { 
+                desc: "ベンチ、公園、トイレ、屋根など無料の居場所", color: "#00b894",
+                analysis: "散策ルート沿いに広く分布。「和風ベンチ」「日よけ・屋根」「綺麗なお手洗い」など、散策中に立ち寄れる滞在拠点を求める声多数。"
+            },
+            "交通・インフラ": { 
+                desc: "歩道拡幅、駐車場、バリアフリーなど", color: "#2980b9",
+                analysis: "城山登山口や駐車場周辺に分布。「バリアフリー化」「駐車場増設」「昇降支援インフラ」等アクセス性向上のアイデア。"
+            },
+            "商業・集客施設": { 
+                desc: "カフェ、スタバ、映画館、服屋など", color: "#e74c3c",
+                analysis: "大手前・桜ホール周辺に集積。「カフェ・スタバ」「映画館」「服屋」など、特に若い世代が日常的に集える店舗の誘致要望が極めて強い。"
+            },
+            "歴史・景観形成": { 
+                desc: "三の丸御殿、白壁、植栽管理など", color: "#6c5ce7",
+                analysis: "歴史と文学の道沿いに集中。「三の丸御殿の復元」「空き家活用」「桜の植え替え」等、歴史的情緒を高める本格的な景観デザイン案。"
+            }
+        }
+    };
+
+    var categoryOrder = ["好きな景色・場所", "課題", "夜間景観", "要望・アイデア"];
+
+    function getShapeSvg(cat, color, size) {
+        let svg = '';
+        if (cat === "好きな景色・場所") {
+            svg = `<circle cx="50" cy="50" r="40" fill="${color}" stroke="#fff" stroke-width="8"/>`;
+        } else if (cat === "課題") {
+            svg = `<rect x="15" y="15" width="70" height="70" rx="12" fill="${color}" stroke="#fff" stroke-width="8"/>`;
+        } else if (cat === "夜間景観") {
+            svg = `<path d="M 80,65 A 40,40 0 1,1 35,20 A 45,45 0 0,0 80,65 Z" fill="${color}" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>`;
+        } else if (cat === "要望・アイデア") {
+            svg = `<polygon points="50,10 61,40 93,40 67,60 77,90 50,72 23,90 33,60 7,40 39,40" fill="${color}" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>`;
+        }
+        return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" style="overflow:visible;">${svg}</svg>`;
+    }
+
+    // 4. データ（176件）
+    var commentsData = [
+        { id: "I-001", cat: "課題", sub: "管理・衛生不足", lat: 32.95680556, lng: 131.8936389, comment: "虫が多い", gender: "男性", age: "0~30", school: "小" },
+        { id: "I-002", cat: "課題", sub: "管理・衛生不足", lat: 32.95738889, lng: 131.8930833, comment: "虫駆除", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-003", cat: "課題", sub: "管理・衛生不足", lat: 32.95605556, lng: 131.8929444, comment: "駐車券が取りにくく入れにくい", gender: "男性", age: "30~60" },
+        { id: "I-004", cat: "課題", sub: "管理・衛生不足", lat: 32.95705556, lng: 131.8937222, comment: "カメムシが多い", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-005", cat: "課題", sub: "管理・衛生不足", lat: 32.95886111, lng: 131.8898889, comment: "ベンチがきたない", gender: "女性", age: "0~30", school: "中高" },
+        { id: "I-006", cat: "課題", sub: "管理・衛生不足", lat: 32.95952778, lng: 131.8886667, comment: "トイレがきたない", gender: "女性", age: "0~30", school: "中高" },
+        { id: "I-007", cat: "課題", sub: "管理・衛生不足", lat: 32.95788889, lng: 131.8922222, comment: "トイレをもう少し使いやすくしてほしい", gender: "男性", age: "30~60" },
+        { id: "I-008", cat: "課題", sub: "管理・衛生不足", lat: 32.96041667, lng: 131.8934722, comment: "バリアフリーなトイレが欲しい", gender: "女性", age: "60 以上" },
+        { id: "I-009", cat: "課題", sub: "管理・衛生不足", lat: 32.95883333, lng: 131.8918611, comment: "虫が多い", gender: "男性", age: "30~60" },
+        { id: "I-010", cat: "課題", sub: "管理・衛生不足", lat: 32.95841667, lng: 131.8918333, comment: "トイレが臭い", gender: "男性", age: "30~60" },
+        { id: "I-011", cat: "課題", sub: "管理・衛生不足", lat: 32.95825, lng: 131.8914722, comment: "藤の花が毎年咲かないので切ってよいのでは", gender: "男性", age: "30~60" },
+        { id: "I-012", cat: "課題", sub: "管理・衛生不足", lat: 32.95702778, lng: 131.8918333, comment: "駐車場の奥の木がつながりすぎているのでゴミが多く汚い 伐採して", gender: "男性", age: "30~60" },
+        { id: "I-013", cat: "課題", sub: "管理・衛生不足", lat: 32.95716667, lng: 131.8921667, comment: "駐車場の管理ができていないので活用できていない", gender: "男性", age: "60 以上" },
+        { id: "I-014", cat: "課題", sub: "管理・衛生不足", lat: 32.95652778, lng: 131.8931667, comment: "駐車場が使いづらく困っている", gender: "女性", age: "30~60" },
+        { id: "I-015", cat: "課題", sub: "管理・衛生不足", lat: 32.95863889, lng: 131.8921111, comment: "虫が多い", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-016", cat: "課題", sub: "管理・衛生不足", lat: 32.95963889, lng: 131.893, comment: "落ち葉、雑草が多い。綺麗な状況を保ってほしい", gender: "男性", age: "0~30" },
+        { id: "I-017", cat: "課題", sub: "管理・衛生不足", lat: 32.95736111, lng: 131.8922222, comment: "観光客もイベントも無いのに車が一杯で停められないのはなぜ", gender: "男性", age: "30~60" },
+        { id: "I-018", cat: "課題", sub: "管理・衛生不足", lat: 32.95858333, lng: 131.8921389, comment: "トイレをもう少し使いやすくしてほしい", gender: "男性", age: "30~60" },
+        { id: "I-019", cat: "課題", sub: "景観の阻害", lat: 32.9605, lng: 131.8935278, comment: "電柱を埋めたら道が見やすくなる", gender: "女性", age: "30~60" },
+        { id: "I-020", cat: "課題", sub: "景観の阻害", lat: 32.95780556, lng: 131.89225, comment: "植栽が邪魔でやぐらが見えない", gender: "男性", age: "30~60" },
+        { id: "I-021", cat: "課題", sub: "景観の阻害", lat: 32.96038889, lng: 131.8906111, comment: "石垣を大きく見せたい", gender: "男性", age: "30~60" },
+        { id: "I-022", cat: "課題", sub: "景観の阻害", lat: 32.95886111, lng: 131.8918889, comment: "木が危ない", gender: "男性", age: "30~60" },
+        { id: "I-023", cat: "課題", sub: "景観の阻害", lat: 32.96063889, lng: 131.8956944, comment: "鶴城高校の外構が景観意識", gender: "男性", age: "30~60" },
+        { id: "I-024", cat: "課題", sub: "景観の阻害", lat: 32.96086111, lng: 131.8895556, comment: "頂上の国旗台が古くなっているのが気になる", gender: "女性", age: "30~60" },
+        { id: "I-025", cat: "課題", sub: "景観の阻害", lat: 32.96044444, lng: 131.8909722, comment: "木を切りすぎている。見栄えが悪い", gender: "女性", age: "30~60" },
+        { id: "I-026", cat: "課題", sub: "景観の阻害", lat: 32.95677778, lng: 131.8933611, comment: "趣きのある歩道橋にしてほしい", gender: "女性", age: "60 以上" },
+        { id: "I-027", cat: "課題", sub: "景観の阻害", lat: 32.96019444, lng: 131.8933889, comment: "電柱、電線があるのは残念", gender: "男性", age: "30~60" },
+        { id: "I-028", cat: "課題", sub: "景観の阻害", lat: 32.95608333, lng: 131.8917778, comment: "建物が古く見える", gender: "男性", age: "30~60" },
+        { id: "I-029", cat: "課題", sub: "景観の阻害", lat: 32.95763889, lng: 131.8923889, comment: "植え込みがあることで櫓門が見えにくい 新しい道では少なめ", gender: "女性", age: "30~60" },
+        { id: "I-030", cat: "課題", sub: "景観の阻害", lat: 32.95763889, lng: 131.8923889, comment: "病気の桜とか老木ばかりなので計画的に更新してほしい", gender: "男性", age: "30~60" },
+        { id: "I-031", cat: "課題", sub: "景観の阻害", lat: 32.95713889, lng: 131.8934444, comment: "歴史と文学の道の整備の際に無電柱化してほしい", gender: "男性", age: "30~60" },
+        { id: "I-032", cat: "課題", sub: "景観の阻害", lat: 32.95886111, lng: 131.8930833, comment: "植栽の伐採の補助がでない", gender: "男性", age: "60 以上" },
+        { id: "I-033", cat: "課題", sub: "景観の阻害", lat: 32.95969444, lng: 131.8930278, comment: "緑は山にたくさんあるので道には不要。困っている人もいる", gender: "男性", age: "30~60" },
+        { id: "I-034", cat: "課題", sub: "景観の阻害", lat: 32.95702778, lng: 131.8936667, comment: "やぐら門がきれいに見えるが、電柱など柱が多い", gender: "男性", age: "30~60" },
+        { id: "I-035", cat: "課題", sub: "交通の危険性", lat: 32.95702778, lng: 131.8936667, comment: "交差点が危ない", gender: "男性", age: "30~60" },
+        { id: "I-036", cat: "課題", sub: "交通の危険性", lat: 32.95697222, lng: 131.8937222, comment: "変速交差点危ない", gender: "女性", age: "0~30", school: "大以上" },
+        { id: "I-037", cat: "課題", sub: "交通の危険性", lat: 32.95877778, lng: 131.8932222, comment: "一方通行がある", gender: "女性", age: "0~30", school: "大以上" },
+        { id: "I-038", cat: "課題", sub: "交通の危険性", lat: 32.95819444, lng: 131.89175, comment: "城山の駐車場に入る入口が危ない", gender: "男性", age: "30~60" },
+        { id: "I-039", cat: "課題", sub: "交通の危険性", lat: 32.95941667, lng: 131.8954722, comment: "保育園までに入るまでが危険", gender: "男性", age: "30~60" },
+        { id: "I-040", cat: "課題", sub: "交通の危険性", lat: 32.95841667, lng: 131.8923889, comment: "横断歩道を塗りなおしてほしい", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-041", cat: "課題", sub: "交通の危険性", lat: 32.95961111, lng: 131.8941667, comment: "車とぶつかりそうになる", gender: "女性", age: "0~30", school: "中高" },
+        { id: "I-042", cat: "課題", sub: "交通の危険性", lat: 32.95691667, lng: 131.8943333, comment: "車が危ない", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-043", cat: "課題", sub: "交通の危険性", lat: 32.95744444, lng: 131.8931111, comment: "交差点の歩行者スペースを広くするため、フェンスを設置", gender: "男性", age: "30~60" },
+        { id: "I-044", cat: "課題", sub: "交通の危険性", lat: 32.96077778, lng: 131.8936944, comment: "車の速度を取り締まる", gender: "女性", age: "30~60" },
+        { id: "I-045", cat: "課題", sub: "交通の危険性", lat: 32.96166667, lng: 131.8943333, comment: "見通しがきかないよ、みんながスピード出てて危ない", gender: "男性", age: "30~60" },
+        { id: "I-046", cat: "課題", sub: "交通の危険性", lat: 32.95772222, lng: 131.8922778, comment: "車の出入り口になっているので櫓門をゆっくり見えない", gender: "男性", age: "30~60" },
+        { id: "I-047", cat: "課題", sub: "交通の危険性", lat: 32.96277778, lng: 131.8953056, comment: "保護者の路上駐車が多い", gender: "男性", age: "0~30" },
+        { id: "I-048", cat: "課題", sub: "交通の危険性", lat: 32.95461111, lng: 131.8931944, comment: "信号が長い", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-049", cat: "課題", sub: "交通の危険性", lat: 32.95769444, lng: 131.8922778, comment: "車から植栽で横断歩道を渡る児童が見えにくい", gender: "男性", age: "30~60" },
+        { id: "I-050", cat: "課題", sub: "歩行空間の不良", lat: 32.95747222, lng: 131.8929444, comment: "歩道を広くしてほしい（植栽が多い）", gender: "男性", age: "30~60" },
+        { id: "I-051", cat: "課題", sub: "歩行空間の不良", lat: 32.96022222, lng: 131.8933889, comment: "道幅がせまい（危ない）", gender: "女性", age: "0~30", school: "大以上" },
+        { id: "I-052", cat: "課題", sub: "歩行空間の不良", lat: 32.95783333, lng: 131.8922778, comment: "カーブの歩道がせまい（小学校をセットバック）", gender: "男性", age: "30~60" },
+        { id: "I-053", cat: "課題", sub: "歩行空間の不良", lat: 32.96036111, lng: 131.8935, comment: "歩行者を優先した道路設計。極力、車道を歩道に", gender: "男性", age: "30~60" },
+        { id: "I-054", cat: "課題", sub: "歩行空間の不良", lat: 32.95863889, lng: 131.8926111, comment: "山際通り全体少し歩道が狭い", gender: "女性", age: "30~60" },
+        { id: "I-055", cat: "課題", sub: "歩行空間の不良", lat: 32.95863889, lng: 131.8921667, comment: "登山道のコンクリート幅", gender: "男性", age: "0~30", school: "小" },
+        { id: "I-056", cat: "課題", sub: "歩行空間の不良", lat: 32.95691667, lng: 131.8936389, comment: "歩道橋が不便", gender: "女性", age: "30~60" },
+        { id: "I-057", cat: "課題", sub: "歩行空間の不良", lat: 32.95680556, lng: 131.8933889, comment: "歩道橋が狭い", gender: "女性", age: "30~60" },
+        { id: "I-058", cat: "課題", sub: "歩行空間の不良", lat: 32.95869444, lng: 131.8925556, comment: "車椅子でも通れるスムーズな道が欲しい", gender: "女性", age: "60 以上" },
+        { id: "I-059", cat: "課題", sub: "歩行空間の不良", lat: 32.96038889, lng: 131.8953889, comment: "道がせまい", gender: "女性", age: "30~60" },
+        { id: "I-060", cat: "課題", sub: "歩行空間の不良", lat: 32.96077778, lng: 131.8936667, comment: "歩道を整備してほしい。歩道を広くしてほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "I-061", cat: "課題", sub: "歩行空間の不良", lat: 32.95697222, lng: 131.8934722, comment: "道と桜ホールの間にある歩道橋が邪魔", gender: "男性", age: "30~60" },
+        { id: "I-062", cat: "課題", sub: "歩行空間の不良", lat: 32.96175, lng: 131.8950833, comment: "歩道がない", gender: "男性", age: "30~60" },
+        { id: "I-063", cat: "課題", sub: "歩行空間の不良", lat: 32.96130556, lng: 131.8940278, comment: "車で通行しにくい", gender: "男性", age: "30~60" },
+        { id: "I-064", cat: "課題", sub: "歩行空間の不良", lat: 32.96161111, lng: 131.8951389, comment: "高校生の通行が多いが歩道がない", gender: "男性", age: "30~60" },
+        { id: "I-065", cat: "課題", sub: "歩行空間の不良", lat: 32.95741667, lng: 131.8929722, comment: "道幅にもっとゆとりがほしい（広くしてほしい）", gender: "女性", age: "30~60" },
+        { id: "I-066", cat: "課題", sub: "歩行空間の不良", lat: 32.95863889, lng: 131.8913611, comment: "城山登るときに犬と一緒に登れるように道が狭いとこを広くしてほしい", gender: "女性", age: "30~60" },
+        { id: "I-067", cat: "課題", sub: "歩行空間の不良", lat: 32.95938889, lng: 131.893, comment: "樹木で歩道が狭くて歩きにくい", gender: "男性", age: "30~60" },
+        { id: "I-068", cat: "課題", sub: "歩行空間の不良", lat: 32.959171, lng: 131.892664, comment: "凸凹で危ない", gender: "女性", age: "60 以上" },
+        { id: "I-069", cat: "課題", sub: "歩行空間の不良", lat: 32.95780556, lng: 131.89225, comment: "段差が少ない", gender: "男性", age: "30~60" },
+        { id: "I-070", cat: "課題", sub: "歩行空間の不良", lat: 32.95780556, lng: 131.89225, comment: "こけやすい", gender: "男性", age: "0~30", school: "小" },
+        { id: "I-071", cat: "課題", sub: "歩行空間の不良", lat: 32.95738889, lng: 131.8930833, comment: "小学校前の歩道がガタガタしている", gender: "男性", age: "30~60" },
+        { id: "I-072", cat: "課題", sub: "歩行空間の不良", lat: 32.96047222, lng: 131.893, comment: "根があってぼこぼこしている", gender: "男性", age: "60 以上" },
+        { id: "I-073", cat: "課題", sub: "歩行空間の不良", lat: 32.95805556, lng: 131.8915, comment: "大きい石があり、危ない", gender: "女性", age: "0~30", school: "小" },
+        { id: "I-074", cat: "課題", sub: "歩行空間の不良", lat: 32.95947222, lng: 131.8895, comment: "ウォーキングのとき小石が多くてすべります", gender: "女性", age: "30~60" },
+        { id: "I-075", cat: "課題", sub: "歩行空間の不良", lat: 32.95788889, lng: 131.8921944, comment: "櫓門下の石畳？の坂、雨の時は滑るので転んで危険です。（骨折あり）", gender: "女性", age: "30~60" },
+        { id: "I-076", cat: "課題", sub: "歩行空間の不良", lat: 32.96163889, lng: 131.8943056, comment: "道がボロボロ", gender: "女性", age: "60 以上" },
+        { id: "I-077", cat: "課題", sub: "歩行空間の不良", lat: 32.96141667, lng: 131.8941389, comment: "道のタイルが割れている", gender: "女性", age: "30~60" },
+        { id: "I-078", cat: "課題", sub: "歩行空間の不良", lat: 32.96255556, lng: 131.8952222, comment: "道路整備してほしい", gender: "男性", age: "60 以上" },
+        { id: "I-079", cat: "課題", sub: "歩行空間の不良", lat: 32.96033333, lng: 131.8905, comment: "滑りやすく危ない", gender: "男性", age: "30~60" },
+        { id: "I-080", cat: "課題", sub: "魅力・機能不足", lat: 32.95583333, lng: 131.8920278, comment: "平日利用が少なく、空き地化している", gender: "女性", age: "30~60" },
+        { id: "I-081", cat: "課題", sub: "魅力・機能不足", lat: 32.956892, lng: 131.893295, comment: "資料館が寂しい入りにくい", gender: "女性", age: "60 以上" },
+        { id: "I-082", cat: "課題", sub: "魅力・機能不足", lat: 32.95913889, lng: 131.8929444, comment: "客を呼びこむ魅力が少ない", gender: "女性", age: "0~30", school: "大以上" },
+        { id: "I-083", cat: "課題", sub: "魅力・機能不足", lat: 32.95894444, lng: 131.8919167, comment: "城山の道の整備をしてほしい", gender: "男性", age: "60 以上" },
+        { id: "I-084", cat: "課題", sub: "魅力・機能不足", lat: 32.95766667, lng: 131.8925, comment: "観光人が不足している", gender: "男性", age: "30~60" },
+        { id: "I-085", cat: "課題", sub: "魅力・機能不足", lat: 32.96066667, lng: 131.8904722, comment: "石垣が有名なのにマイナーなのが課題", gender: "男性", age: "30~60" },
+        { id: "I-086", cat: "課題", sub: "魅力・機能不足", lat: 32.95711111, lng: 131.89525, comment: "１階路面店は、大きなガラスで中が見れると安心", gender: "男性", age: "30~60" },
+        { id: "I-087", cat: "課題", sub: "魅力・機能不足", lat: 32.95569444, lng: 131.8930556, comment: "駐車場が少ない", gender: "女性", age: "30~60" },
+        { id: "I-088", cat: "課題", sub: "魅力・機能不足", lat: 32.95980556, lng: 131.8907778, comment: "城山の道がきついので、歩きやすい道にしてほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "I-089", cat: "課題", sub: "魅力・機能不足", lat: 32.96197222, lng: 131.8949722, comment: "お店などがなく、なかなか自分の生活圏ではないので行くことが少ない", gender: "女性", age: "30~60" },
+        { id: "I-090", cat: "課題", sub: "魅力・機能不足", lat: 32.95772222, lng: 131.8923889, comment: "休憩所がほしい。影があればいい", gender: "女性", age: "30~60" },
+        { id: "I-091", cat: "課題", sub: "魅力・機能不足", lat: 32.95775, lng: 131.8915, comment: "駐車場整備をしっかりしてほしい", gender: "女性", age: "30~60" },
+        { id: "I-092", cat: "課題", sub: "魅力・機能不足", lat: 32.95674167, lng: 131.8945417, comment: "駐車場が欲しい", gender: "男性", age: "30~60" },
+        { id: "I-093", cat: "課題", sub: "魅力・機能不足", lat: 32.95758333, lng: 131.8923611, comment: "お金を落とす所が少ない。お店が少ない。", gender: "男性", age: "0~30" },
+        { id: "I-094", cat: "課題", sub: "魅力・機能不足", lat: 32.95902778, lng: 131.8929167, comment: "目的地がない", gender: "男性", age: "0~30" },
+        { id: "I-095", cat: "課題", sub: "魅力・機能不足", lat: 32.95588889, lng: 131.89225, comment: "市街の人々にとって入りにくい駐車場で案内が難しい", gender: "女性", age: "0~30" },
+        { id: "I-096", cat: "課題", sub: "魅力・機能不足", lat: 32.95888889, lng: 131.8903056, comment: "順路がわかりやすく、看板など", gender: "男性", age: "30~60" },
+        { id: "I-097", cat: "課題", sub: "魅力・機能不足", lat: 32.96213889, lng: 131.8946111, comment: "観光目的では入れない", gender: "男性", age: "30~60" },
+        { id: "I-098", cat: "課題", sub: "魅力・機能不足", lat: 32.95730556, lng: 131.89475, comment: "シャッター街になっている", gender: "男性", age: "30~60" },
+        { id: "I-099", cat: "課題", sub: "魅力・機能不足", lat: 32.95813889, lng: 131.8910833, comment: "文化会館解体跡地の整備をしてほしい", gender: "女性", age: "30~60" },
+        { id: "I-100", cat: "課題", sub: "魅力・機能不足", lat: 32.95583333, lng: 131.8933056, comment: "情報発信館があまり空いてない", gender: "女性", age: "30~60" },
+        { id: "I-101", cat: "課題", sub: "魅力・機能不足", lat: 32.95741667, lng: 131.89225, comment: "歴史と文学の道周辺に長く滞在してもらえるようなしくみを考えてほしい", gender: "男性", age: "30~60" },
+        { id: "I-102", cat: "課題", sub: "魅力・機能不足", lat: 32.96025, lng: 131.8899444, comment: "景色キレイだが場所自体がな～", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-001", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95938889, lng: 131.8954167, comment: "ルンビニこども園オススメ", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-002", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95938889, lng: 131.8954167, comment: "ルンビニこども園が大好きです", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-003", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.96205556, lng: 131.8948889, comment: "馬場の松広場？の雰囲気けっこう好き", gender: "女性", age: "30~60" },
+        { id: "F-004", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95566667, lng: 131.894, comment: "桜ホールいろんな人と交流できるからいい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-005", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95580556, lng: 131.8940833, comment: "桜ホールいっぱい机があってみんなで楽しめる（近いからお手軽に行ける）", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-006", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.96033333, lng: 131.8934444, comment: "城下町観光交流館お気に入りです", gender: "女性", age: "30~60" },
+        { id: "F-007", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95664167, lng: 131.8936167, comment: "桜ホール周辺公園", gender: "女性", age: "30~60" },
+        { id: "F-008", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95725, lng: 131.8923889, comment: "和風でよい", gender: "男性", age: "30~60" },
+        { id: "F-009", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95983333, lng: 131.8930833, comment: "お気に入りのジョギングコース", gender: "男性", age: "60 以上" },
+        { id: "F-010", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95808333, lng: 131.8923611, comment: "ベンチがお気に入り", gender: "男性", age: "30~60" },
+        { id: "F-011", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95569444, lng: 131.8940833, comment: "桜ホールこどもが遊べる", gender: "男性", age: "30~60" },
+        { id: "F-012", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95641667, lng: 131.89375, comment: "桜ホールのガラスが開放できていい", gender: "男性", age: "30~60" },
+        { id: "F-013", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.96036111, lng: 131.8902222, comment: "木を伐採したことによって小学生とかが上りやすくなった", gender: "男性", age: "30~60" },
+        { id: "F-014", cat: "好きな景色・場所", sub: "公共施設・広場", lat: 32.95674167, lng: 131.8936861, comment: "きれいに保たれている", gender: "男性", age: "30~60" },
+        { id: "F-015", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95780556, lng: 131.89225, comment: "動物が多い", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-016", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95677778, lng: 131.8938889, comment: "花がいっぱい", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-017", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95905556, lng: 131.8928889, comment: "桜がいっぱい", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-018", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.96005556, lng: 131.8899167, comment: "静かで涼しい風でさわやか", gender: "男性", age: "30~60" },
+        { id: "F-019", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95722222, lng: 131.8911667, comment: "翡翠明代の森な感じが好き", gender: "男性", age: "30~60" },
+        { id: "F-020", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95861111, lng: 131.8916111, comment: "川が涼しげで良い", gender: "男性", age: "30~60" },
+        { id: "F-021", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95991667, lng: 131.8886389, comment: "大分サンショウウオの生息地", gender: "男性", age: "0~30" },
+        { id: "F-022", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.9585, lng: 131.8925278, comment: "桜がきれい", gender: "男性", age: "0~30" },
+        { id: "F-023", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.96091667, lng: 131.8934722, comment: "裏の池の睡蓮が綺麗。建物も〇", gender: "男性", age: "60 以上" },
+        { id: "F-024", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95919444, lng: 131.8929444, comment: "桜並木", gender: "男性", age: "30~60" },
+        { id: "F-025", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95880556, lng: 131.8927778, comment: "春に歩くと桜が舞っていて春を感じる", gender: "男性", age: "0~30" },
+        { id: "F-026", cat: "好きな景色・場所", sub: "自然・季節", lat: 32.95861111, lng: 131.8918333, comment: "オウサンショウウオを見つけた。１０ｍぐらい先のところにいた。", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-027", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95997222, lng: 131.8898056, comment: "ずっと伐採続けてほしい。景色〇", gender: "男性", age: "30~60" },
+        { id: "F-028", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96077778, lng: 131.8893611, comment: "頂上から見る四国の景色", gender: "女性", age: "30~60" },
+        { id: "F-029", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96044444, lng: 131.8898611, comment: "頂上から四国まで見える", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-030", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95947222, lng: 131.8894444, comment: "頂上がすき", gender: "男性", age: "0~30", school: "小" },
+        { id: "F-031", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96008333, lng: 131.8891111, comment: "頂上から見下ろすまちが好き", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-032", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95988889, lng: 131.8894722, comment: "城山頂上", gender: "男性", age: "30~60" },
+        { id: "F-033", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96005556, lng: 131.8896389, comment: "景色綺麗", gender: "男性", age: "30~60" },
+        { id: "F-034", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96136111, lng: 131.8954722, comment: "馬場の松の眺め", gender: "女性", age: "30~60" },
+        { id: "F-035", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96033333, lng: 131.8899722, comment: "朝日を見るのが最高", gender: "男性", age: "30~60" },
+        { id: "F-036", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96013889, lng: 131.8933056, comment: "井戸のある景色good", gender: "男性", age: "30~60" },
+        { id: "F-037", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.959736, lng: 131.889354, comment: "城山から見た景色が絶景", gender: "男性", age: "0~30", school: "大以上" },
+        { id: "F-038", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95963889, lng: 131.8895833, comment: "海をのぞむ。景色がきれい", gender: "男性", age: "60 以上" },
+        { id: "F-039", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95716667, lng: 131.8935, comment: "城山の景色がきれいに見える", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-040", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95763889, lng: 131.8925833, comment: "教室からの景色がきれい", gender: "女性", age: "0~30", school: "小" },
+        { id: "F-041", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96013889, lng: 131.8899167, comment: "景色がとてもよくなった。佐伯市が一望できる", gender: "男性", age: "30~60" },
+        { id: "F-042", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.96044444, lng: 131.8900833, comment: "豊後水道大入島ほっとする", gender: "男性", age: "30~60" },
+        { id: "F-043", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95686111, lng: 131.8933056, comment: "歩道橋から見える景色がよい", gender: "男性", age: "30~60" },
+        { id: "F-044", cat: "好きな景色・場所", sub: "眺望・ビュースポット", lat: 32.95913889, lng: 131.8946667, comment: "山頂を伐ってくれたので、灘から城跡が見えて良くなった", gender: "男性", age: "30~60" },
+        { id: "F-045", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95772222, lng: 131.8913889, comment: "イベントが季節ごとにあって好き", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-046", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95619444, lng: 131.8941111, comment: "桜ホールおまつりがいっぱいあるところ", gender: "女性", age: "0~30", school: "中高" },
+        { id: "F-047", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95786111, lng: 131.8917222, comment: "にぎわいがあって好き", gender: "女性", age: "30~60" },
+        { id: "F-048", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.9565, lng: 131.8938333, comment: "参加者も観客も楽しみにまってます。そうでない方もお出迎えします。このイベントだけは止めないで", gender: "男性", age: "30~60" },
+        { id: "F-049", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95752778, lng: 131.8926944, comment: "祭りの時の風景が好き", gender: "男性", age: "30~60" },
+        { id: "F-050", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.956075, lng: 131.8933694, comment: "新しい店と昔ながらの店があっていい", gender: "男性", age: "0~30" },
+        { id: "F-051", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95644444, lng: 131.8938056, comment: "日ごろからいろいろな人が集まっていい場所", gender: "男性", age: "30~60" },
+        { id: "F-052", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95580556, lng: 131.8910556, comment: "しまあじの塩たたき絶品", gender: "男性", age: "30~60" },
+        { id: "F-053", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95577778, lng: 131.8934444, comment: "お気に入りのカフェ", gender: "女性", age: "0~30" },
+        { id: "F-054", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.95997222, lng: 131.8932778, comment: "メロンパン安くておいしいよ", gender: "男性", age: "30~60" },
+        { id: "F-055", cat: "好きな景色・場所", sub: "賑わい・グルメ", lat: 32.956075, lng: 131.8933694, comment: "パスタ、カレー、ワインがおいしい", gender: "女性", age: "30~60" },
+        { id: "F-056", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95702778, lng: 131.8951111, comment: "中町の古民家な感じがいい", gender: "男性", age: "60 以上" },
+        { id: "F-057", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95791667, lng: 131.89225, comment: "やぐら門の横の石垣", gender: "男性", age: "60 以上" },
+        { id: "F-058", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95902778, lng: 131.8928889, comment: "石畳と桜がきれい", gender: "女性", age: "30~60" },
+        { id: "F-059", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96119444, lng: 131.8939444, comment: "白壁造りの通りが見栄えが良く好ましい", gender: "男性", age: "30~60" },
+        { id: "F-060", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95958333, lng: 131.8930278, comment: "石畳が良い", gender: "男性", age: "30~60" },
+        { id: "F-061", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96008333, lng: 131.8898056, comment: "歴史を感じられて良い城山", gender: "男性", age: "30~60" },
+        { id: "F-062", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95955556, lng: 131.8930278, comment: "歴史と文学の道の石畳", gender: "女性", age: "30~60" },
+        { id: "F-063", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96086111, lng: 131.8935278, comment: "国木田独歩館の天井が低い２階から外を見る", gender: "男性", age: "30~60" },
+        { id: "F-064", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95713889, lng: 131.8935278, comment: "立派なやぐら門を正面から一本道の先に見る", gender: "男性", age: "30~60" },
+        { id: "F-065", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.95980556, lng: 131.8930556, comment: "落ち着いた雰囲気が良い", gender: "女性", age: "30~60" },
+        { id: "F-066", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96005556, lng: 131.8942222, comment: "城下町が実感できるカクカクした道", gender: "男性", age: "30~60" },
+        { id: "F-067", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96197222, lng: 131.8946944, comment: "歴史と文学の道の石畳の雰囲気がいい", gender: "男性", age: "30~60" },
+        { id: "F-068", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96005556, lng: 131.8932778, comment: "お気に入りの街並み", gender: "女性", age: "30~60" },
+        { id: "F-069", cat: "好きな景色・場所", sub: "歴史的町並み", lat: 32.96025, lng: 131.8935556, comment: "古い門と古いポストが良い", gender: "男性", age: "30~60" },
+        { id: "N-001", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95816667, lng: 131.8923889, comment: "街灯が少ない", gender: "男性", age: "30~60" },
+        { id: "N-002", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9565, lng: 131.8932389, comment: "桜ホールのライトアップがものすごく綺麗（一歩別の道へ入るとかなり暗いので他の小道にもライトがあるとうれしい）", gender: "女性", age: "0~30" },
+        { id: "N-003", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.96086111, lng: 131.8904722, comment: "登山道に明かりがほしい", gender: "男性", age: "0~30" },
+        { id: "N-004", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95886111, lng: 131.8934444, comment: "照明があまり無く、怖い", gender: "男性", age: "30~60" },
+        { id: "N-005", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95747222, lng: 131.8931944, comment: "暗くて景観が・・・", gender: "男性", age: "30~60" },
+        { id: "N-006", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95794444, lng: 131.8922778, comment: "街頭がほしい", gender: "女性", age: "0~30", school: "小" },
+        { id: "N-007", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.96186111, lng: 131.8945556, comment: "養賢寺まで照明が少ない", gender: "男性", age: "30~60" },
+        { id: "N-008", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.96113889, lng: 131.8939167, comment: "夜が暗すぎてライトがほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "N-009", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.96177778, lng: 131.8948889, comment: "夜暗いので明るくしてほしい", gender: "男性", age: "30~60" },
+        { id: "N-010", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95777778, lng: 131.8921667, comment: "路面が暗い", gender: "女性", age: "30~60" },
+        { id: "N-011", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95716667, lng: 131.8945278, comment: "夜かなり暗い印象がある なにか期間限定でいいから出店があれば人が来ると思う", gender: "男性", age: "30~60" },
+        { id: "N-012", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95872222, lng: 131.8916667, comment: "山道が夜でも歩けるよう照明が欲しい", gender: "男性", age: "60 以上" },
+        { id: "N-013", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.95852778, lng: 131.8933611, comment: "取り残されている感じがする", gender: "男性", age: "30~60" },
+        { id: "N-014", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.96102778, lng: 131.8938333, comment: "お店が無く、夜が寂しい", gender: "女性", age: "30~60" },
+        { id: "N-015", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.96041667, lng: 131.8908611, comment: "街灯があるとよいと思う", gender: "女性", age: "0~30", school: "中高" },
+        { id: "N-016", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95775, lng: 131.8921389, comment: "夜のライトアップがあると良い", gender: "女性", age: "30~60" },
+        { id: "N-017", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95994444, lng: 131.8896389, comment: "石垣のライトで見える", gender: "男性", age: "30~60" },
+        { id: "N-018", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.96005556, lng: 131.8898889, comment: "石垣ライトアップ", gender: "男性", age: "30~60" },
+        { id: "N-019", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95997222, lng: 131.8938333, comment: "照明の色がバラバラ、統一してほしい", gender: "男性", age: "30~60" },
+        { id: "N-020", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95733333, lng: 131.8930278, comment: "ベンチと間接照明があるとよい", gender: "男性", age: "30~60" },
+        { id: "N-021", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95780556, lng: 131.8924167, comment: "街灯の色を白から暖色系にして", gender: "男性", age: "30~60" },
+        { id: "N-022", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95816667, lng: 131.8913889, comment: "ライトアップが見てみたい", gender: "男性", age: "30~60" },
+        { id: "N-023", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.96125, lng: 131.8955, comment: "松などが立派にあるので、ライトアップなどしたらもっと注目されるのでは", gender: "女性", age: "30~60" },
+        { id: "N-024", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95925, lng: 131.8945278, comment: "足元照明が良い", gender: "男性", age: "30~60" },
+        { id: "N-025", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95902778, lng: 131.8929167, comment: "桜のライトアップバージョンアップ", gender: "女性", age: "0~30", school: "小" },
+        { id: "N-026", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95988889, lng: 131.8895833, comment: "ライトアップで下から見たときの景観をよくしてほしい", gender: "男性", age: "30~60" },
+        { id: "N-027", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95858333, lng: 131.8911111, comment: "ライトつける", gender: "男性", age: "30~60" },
+        { id: "N-028", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.96033333, lng: 131.8913056, comment: "独歩、石碑の道を20時か21時までライトで歩けないか", gender: "男性", age: "60 以上" },
+        { id: "N-029", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95763889, lng: 131.8926944, comment: "城下町のような和風のベンチを置いたり灯篭風なライトを照らしたりするとよい", gender: "女性", age: "0~30" },
+        { id: "N-030", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95852778, lng: 131.8925278, comment: "竹灯篭を設置してライトアップすると趣があるのでは", gender: "男性", age: "0~30" },
+        { id: "N-031", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.96027778, lng: 131.8934167, comment: "春の桜がきれいです。春まつりの夜のライトアップも好きです。", gender: "女性", age: "30~60" },
+        { id: "N-032", cat: "夜間景観", sub: "要望（照らしてほしい）", lat: 32.95780556, lng: 131.89225, comment: "ライトアップされたやぐら門の景色がとても良い。", gender: "女性", age: "30~60" },
+        { id: "N-033", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.95638611, lng: 131.8935139, comment: "夜の桜ホールの雰囲気が良い", gender: "男性", age: "30~60" },
+        { id: "N-034", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.95665833, lng: 131.8937611, comment: "夜の桜ホールごろごろパークの噴水がきれい", gender: "男性", age: "30~60" },
+        { id: "N-035", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.96075, lng: 131.8901389, comment: "城山の頂上から見る夜景がきれい！ナイトハイク最高！", gender: "女性", age: "0~30", school: "中高" },
+        { id: "N-036", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.95572222, lng: 131.8949167, comment: "イルミネーションがきれい", gender: "男性", age: "30~60" },
+        { id: "N-037", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.95958333, lng: 131.8941667, comment: "店の照明が綺麗、夜になってからいい感じです", gender: "男性", age: "30~60" },
+        { id: "N-038", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.95655556, lng: 131.8940833, comment: "ライトアップがきれい", gender: "女性", age: "0~30" },
+        { id: "N-039", cat: "夜間景観", sub: "良い点（魅力）", lat: 32.95652778, lng: 131.8940556, comment: "ライトアップされた夜景がきれい！", gender: "男性", age: "30~60" },
+        { id: "R-001", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.96036111, lng: 131.8933889, comment: "イベント等で活用、観光交流館", gender: "女性", age: "30~60" },
+        { id: "R-002", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.96111111, lng: 131.8940833, comment: "人が寄り付くイベント等を", gender: "男性", age: "0~30" },
+        { id: "R-003", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95780556, lng: 131.8922222, comment: "臼杵みたいなイベントができたらいい", gender: "女性", age: "30~60" },
+        { id: "R-004", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95816667, lng: 131.8923889, comment: "イベントをやったことがある", gender: "女性", age: "30~60" },
+        { id: "R-005", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95780556, lng: 131.89225, comment: "観劇のイベント", gender: "女性", age: "30~60" },
+        { id: "R-006", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.9585, lng: 131.8936111, comment: "地面にアートがあるとよりよくなる（石畳み）", gender: "男性", age: "30~60" },
+        { id: "R-007", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95822222, lng: 131.8937778, comment: "アートに関わるもの。建物がアートだと面白い", gender: "男性", age: "30~60" },
+        { id: "R-008", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95758333, lng: 131.8918333, comment: "月１フリーマーケット開催", gender: "女性", age: "30~60" },
+        { id: "R-009", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.9575, lng: 131.8926944, comment: "お祭りを増やしてほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-010", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95647222, lng: 131.8935278, comment: "ポケモンのマンホール", gender: "女性", age: "60 以上" },
+        { id: "R-011", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95847222, lng: 131.8915, comment: "ポケモンマンホール設置", gender: "男性", age: "30~60" },
+        { id: "R-012", cat: "要望・アイデア", sub: "イベント・ソフト事業", lat: 32.95656111, lng: 131.893675, comment: "桜祭りのようなイベントをたまにやってほしい", gender: "女性", age: "0~30" },
+        { id: "R-013", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.957, lng: 131.8935278, comment: "歩道橋に屋根をつけてほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-014", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95686111, lng: 131.8945556, comment: "公園が欲しいな", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-015", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95644444, lng: 131.8940556, comment: "図書館の機能が欲しい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-016", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.96013889, lng: 131.8888056, comment: "運動ができる場所がほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-017", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95794444, lng: 131.8922778, comment: "もっとくつろげる憩いの場が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-018", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95766667, lng: 131.8919722, comment: "子どもたちが遊べる場所があったらいいのでは", gender: "女性", age: "30~60" },
+        { id: "R-019", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.96169444, lng: 131.8943611, comment: "ベンチがほしい", gender: "女性", age: "60 以上" },
+        { id: "R-020", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95622222, lng: 131.8941389, comment: "芝生に遊具が欲しい", gender: "女性", age: "0~30", school: "小" },
+        { id: "R-021", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95944444, lng: 131.8930278, comment: "屋根のある休憩スペースが欲しい", gender: "男性", age: "30~60" },
+        { id: "R-022", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95997222, lng: 131.8938889, comment: "まち中に座る所があるといいな（ベンチより座れるもの）", gender: "女性", age: "30~60" },
+        { id: "R-023", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95788889, lng: 131.8922222, comment: "トイレをふやしてほしい", gender: "女性", age: "60 以上" },
+        { id: "R-024", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95763889, lng: 131.8918889, comment: "ベンチがあったらいいな", gender: "女性", age: "30~60" },
+        { id: "R-025", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.96047222, lng: 131.8935278, comment: "歩道の所だけでいいから屋根がほしい", gender: "女性", age: "30~60" },
+        { id: "R-026", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95805556, lng: 131.8915, comment: "公園が欲しいな", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-027", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95788889, lng: 131.89175, comment: "水の飲み場と屋根があったらいいな（アーケードがほいい）", gender: "女性", age: "30~60" },
+        { id: "R-028", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95769444, lng: 131.8913056, comment: "公園がほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-029", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95772222, lng: 131.8922222, comment: "遊べる空間・場所にしてほしい", gender: "女性", age: "0~30", school: "小" },
+        { id: "R-030", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95716667, lng: 131.8934444, comment: "ゆっくり歩けるスペースが欲しい", gender: "女性", age: "30~60" },
+        { id: "R-031", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95738889, lng: 131.8933889, comment: "ベンチが欲しい", gender: "女性", age: "60 以上" },
+        { id: "R-032", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.9615, lng: 131.8941944, comment: "少し休めるお店やベンチなどがあるといいかもしれないです", gender: "男性", age: "30~60" },
+        { id: "R-033", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95647222, lng: 131.894, comment: "ベンチがほしい", gender: "女性", age: "0~30", school: "小" },
+        { id: "R-034", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.96038889, lng: 131.8935, comment: "ベンチ", gender: "女性", age: "60 以上" },
+        { id: "R-035", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.96019444, lng: 131.8934167, comment: "休める空間とそこでカフェのような場所があっても", gender: "女性", age: "30~60" },
+        { id: "R-036", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95847222, lng: 131.8934167, comment: "公園がほしい", gender: "女性", age: "30~60" },
+        { id: "R-037", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.96025, lng: 131.8891667, comment: "水あそびができるところ", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-038", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95827778, lng: 131.8913056, comment: "公園を整備してほしい", gender: "男性", age: "30~60" },
+        { id: "R-039", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95788889, lng: 131.8912222, comment: "桜が見えるベンチ。桜をゆっくりみる", gender: "男性", age: "60 以上" },
+        { id: "R-040", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95747222, lng: 131.8923611, comment: "綺麗なトイレがほしい", gender: "男性", age: "30~60" },
+        { id: "R-041", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95741667, lng: 131.8921667, comment: "ベンチを置きたい", gender: "男性", age: "0~30" },
+        { id: "R-042", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95819444, lng: 131.8911667, comment: "城山をゆっくり見るためのベンチが欲しい", gender: "男性", age: "30~60" },
+        { id: "R-043", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95653056, lng: 131.8930194, comment: "喫煙所が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-044", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95752778, lng: 131.8929444, comment: "ベンチがほしい", gender: "男性", age: "0~30" },
+        { id: "R-045", cat: "要望・アイデア", sub: "休憩・滞在空間", lat: 32.95577778, lng: 131.8941111, comment: "外に屋根がほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-046", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.96030556, lng: 131.8893889, comment: "ロープウェイ欲しいな", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-047", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.95833333, lng: 131.8922222, comment: "トイレまでの道で、バリアフリーのような道がほしい", gender: "女性", age: "60 以上" },
+        { id: "R-048", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.95633333, lng: 131.8934444, comment: "車両限定で対面通行にしてほしい", gender: "女性", age: "30~60" },
+        { id: "R-049", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.95986111, lng: 131.8931111, comment: "車道がわざと狭くなっていると、スピードが緩めるので狭くするイメージの手法を作ってほしい", gender: "女性", age: "30~60" },
+        { id: "R-050", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.95630556, lng: 131.8943333, comment: "桜ホールの近くにもっと駐車場が増えるとうれしい", gender: "女性", age: "30~60" },
+        { id: "R-051", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.95583333, lng: 131.8928056, comment: "駐車場を増やしてほしい", gender: "男性", age: "30~60" },
+        { id: "R-052", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.96008333, lng: 131.8896667, comment: "エスカレーターなどで楽に登りたい", gender: "男性", age: "0~30" },
+        { id: "R-053", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.95822222, lng: 131.8912778, comment: "何かしら整備してほしい（建物以外）", gender: "男性", age: "0~30" },
+        { id: "R-054", cat: "要望・アイデア", sub: "交通・インフラ", lat: 32.9605, lng: 131.8893889, comment: "車で登れるとうれしい", gender: "男性", age: "30~60" },
+        { id: "R-055", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.96155556, lng: 131.8959167, comment: "ボウリング場がほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-056", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95816667, lng: 131.8922222, comment: "ビルを建設してほしい", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-057", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95719444, lng: 131.8925278, comment: "ミスドとスタバがほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-058", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95788889, lng: 131.8909167, comment: "洒落たカフェなど人が集まる憩いの空間にしてほしい", gender: "男性", age: "30~60" },
+        { id: "R-059", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95730556, lng: 131.8926667, comment: "ミスドつくして", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-060", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95863889, lng: 131.8926667, comment: "若い人にもうけるかわいいお店が欲しい", gender: "女性", age: "0~30" },
+        { id: "R-061", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95671111, lng: 131.8925, comment: "飲食店がもっと欲しい", gender: "女性", age: "0~30" },
+        { id: "R-062", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95719444, lng: 131.8949167, comment: "娯楽が少ない", gender: "男性", age: "30~60" },
+        { id: "R-063", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95666944, lng: 131.8931917, comment: "買い物できるお店が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-064", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95630556, lng: 131.89425, comment: "飲食店が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-065", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95913889, lng: 131.8929722, comment: "飲食店が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-066", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95838889, lng: 131.8936111, comment: "空き家になれば、若者が集まる建物を作る", gender: "男性", age: "30~60" },
+        { id: "R-067", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.96086111, lng: 131.8935278, comment: "テラスのあるカフェが欲しい", gender: "男性", age: "30~60" },
+        { id: "R-068", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.958, lng: 131.8921944, comment: "どこかに有料のシャワールームが欲しい", gender: "女性", age: "30~60" },
+        { id: "R-069", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95666667, lng: 131.8934167, comment: "コインランドリーが欲しい", gender: "女性", age: "30~60" },
+        { id: "R-070", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95680556, lng: 131.8943889, comment: "服屋が欲しい（ＧＵとか）", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-071", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95855556, lng: 131.8925556, comment: "シンボルとなる食が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-072", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.959, lng: 131.8945833, comment: "映画館が欲しい", gender: "男性", age: "0~30", school: "小" },
+        { id: "R-073", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95777778, lng: 131.8919167, comment: "佐伯文化会館に人が集まって話ができる小さな施設が欲しい", gender: "男性", age: "30~60" },
+        { id: "R-074", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.96019444, lng: 131.8896389, comment: "景色がみれるプールがほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-075", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95847222, lng: 131.8934722, comment: "佐伯小に映画館ほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-076", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95716667, lng: 131.8949444, comment: "コストコつくして！", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-077", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95869444, lng: 131.8926389, comment: "お店がほしい", gender: "女性", age: "30~60" },
+        { id: "R-078", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95761111, lng: 131.8924167, comment: "スタバがほしい", gender: "女性", age: "0~30", school: "大以上" },
+        { id: "R-079", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95733333, lng: 131.8930278, comment: "スタバがほしい", gender: "女性", age: "0~30", school: "中高" },
+        { id: "R-080", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95705556, lng: 131.8921111, comment: "ラウンドワンがほしい", gender: "女性", age: "0~30", school: "小" },
+        { id: "R-081", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95697222, lng: 131.8920278, comment: "マンガそうこができてほしい", gender: "女性", age: "0~30", school: "小" },
+        { id: "R-082", cat: "要望・アイデア", sub: "商業・集客施設", lat: 32.95788889, lng: 131.8911389, comment: "美味しいお蕎麦屋や茶菓子や的なお店がほしい", gender: "男性", age: "30~60" },
+        { id: "R-083", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95575, lng: 131.8942222, comment: "新屋敷商店街まで足を運びたくなると楽しいと思う", gender: "男性", age: "30~60" },
+        { id: "R-084", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95583333, lng: 131.8933056, comment: "船頭町につながる広い範囲の街づくりを期待", gender: "男性", age: "30~60" },
+        { id: "R-085", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96077, lng: 131.893736, comment: "倉とか昔の風景が強い建物がほしい", gender: "女性", age: "60 以上" },
+        { id: "R-086", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96108333, lng: 131.8938611, comment: "白壁のある空き家を購入すべき", gender: "男性", age: "30~60" },
+        { id: "R-087", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96144444, lng: 131.8941111, comment: "空き家を活用", gender: "男性", age: "30~60" },
+        { id: "R-088", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96138889, lng: 131.8940833, comment: "空き家活用", gender: "女性", age: "30~60" },
+        { id: "R-089", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95916667, lng: 131.8919167, comment: "城山と建物のマッチが大事（新しい建物は✕）", gender: "男性", age: "60 以上" },
+        { id: "R-090", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96063889, lng: 131.8905, comment: "木をもっと伐採", gender: "男性", age: "60 以上" },
+        { id: "R-091", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95772222, lng: 131.8914167, comment: "三の丸御殿の復活", gender: "男性", age: "30~60" },
+        { id: "R-092", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95805556, lng: 131.8934167, comment: "小学校の緑地化", gender: "男性", age: "30~60" },
+        { id: "R-093", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95858333, lng: 131.8926111, comment: "季節ごとの特徴のあるものを屋根などにつける", gender: "男性", age: "30~60" },
+        { id: "R-094", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96147222, lng: 131.8941389, comment: "道の脇に水路をほって、鯉を流したらいいね", gender: "男性", age: "60 以上" },
+        { id: "R-095", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96030556, lng: 131.8935278, comment: "（元）文化会館に来るときに通る道。道に接している家は色などの制限がある", gender: "女性", age: "60 以上" },
+        { id: "R-096", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95763889, lng: 131.8919722, comment: "緑地化", gender: "男性", age: "30~60", school: "中高" },
+        { id: "R-097", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95805556, lng: 131.8911389, comment: "行く目的となるような何かがあればいいと思う", gender: "女性", age: "0~30" },
+        { id: "R-098", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95808333, lng: 131.8909444, comment: "桜の木を植えてほしい", gender: "男性", age: "30~60" },
+        { id: "R-099", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95786111, lng: 131.8911667, comment: "桜の木の寿命により劣化している。桜の植樹か紅葉の名所", gender: "男性", age: "30~60" },
+        { id: "R-100", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95894444, lng: 131.8928333, comment: "この辺を石畳の道にしてほしい", gender: "男性", age: "0~30" },
+        { id: "R-101", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95794444, lng: 131.8912778, comment: "桜をもっと整備してほしい", gender: "女性", age: "30~60" },
+        { id: "R-102", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95805556, lng: 131.893, comment: "小学校を統合し賑やかな小学校に", gender: "男性", age: "30~60" },
+        { id: "R-103", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95866667, lng: 131.8926389, comment: "山側の植栽はいらない 桜を順次更新する", gender: "男性", age: "30~60" },
+        { id: "R-104", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95791667, lng: 131.8918611, comment: "門を過ぎた先に何もないのでなにかほしい", gender: "男性", age: "60 以上" },
+        { id: "R-105", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95791667, lng: 131.8918611, comment: "門の先にがっかりしない建物が欲しい", gender: "男性", age: "60 以上" },
+        { id: "R-106", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.95777778, lng: 131.8918333, comment: "文化会館跡地に何もない（公園や休憩所）", gender: "女性", age: "30~60" },
+        { id: "R-107", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.96197222, lng: 131.8957222, comment: "地区で過去の災害の被害が一目わかるようにしてほしい", gender: "男性", age: "60 以上" }
+    ];
+
+    var currentMarkers = [];
+    var activeAnalysisSubs = new Set();
+    var analysisLayersMap = {};
+    var isBubbleVisible = false;
+    var isRadarAnimOn = true;
+
+    function getSubColorInfo(cat, sub) {
+        if (subCategoryMaster[cat] && subCategoryMaster[cat][sub]) {
+            return subCategoryMaster[cat][sub].color;
+        }
+        return "#34495e";
+    }
+
+    // 5. レイヤーツリーUI構築
+    function buildLayerTreeUI() {
+        var container = document.getElementById('layerTreeContainer');
+        container.innerHTML = '';
+
+        var subCounts = {};
+        commentsData.forEach(item => {
+            subCounts[item.sub] = (subCounts[item.sub] || 0) + 1;
+        });
+
+        categoryOrder.forEach(catName => {
+            if (!subCategoryMaster[catName]) return;
+
+            var catGroup = document.createElement('div');
+            catGroup.className = 'category-group';
+            catGroup.setAttribute('data-cat-group', catName);
+
+            var parentLabel = document.createElement('label');
+            parentLabel.className = 'parent-label';
+            parentLabel.innerHTML = `
+                <input type="checkbox" class="parent-checkbox" data-cat="${catName}" checked onchange="toggleCategoryGroup('${catName}', this.checked)">
+                ${catName}
+            `;
+            catGroup.appendChild(parentLabel);
+
+            var subList = document.createElement('div');
+            subList.className = 'sub-list';
+
+            var sortedSubs = Object.keys(subCategoryMaster[catName]).sort((a, b) => {
+                var countA = subCounts[a] || 0;
+                var countB = subCounts[b] || 0;
+                return countB - countA;
+            });
+
+            sortedSubs.forEach(subName => {
+                var count = subCounts[subName] || 0;
+                var color = subCategoryMaster[catName][subName].color;
+                var svgIcon = getShapeSvg(catName, color, 12);
+
+                var subRow = document.createElement('div');
+                subRow.className = 'sub-item-row';
+                subRow.innerHTML = `
+                    <label class="sub-label">
+                        <input type="checkbox" class="sub-checkbox sub-${catName}" data-cat="${catName}" data-sub="${subName}" checked onchange="updateFilterAndRender()">
+                        <span class="shape-badge">${svgIcon}</span>
+                        <span>${subName} <span class="sub-count">(${count})</span></span>
+                    </label>
+                    <div class="row-action-btns">
+                        <button class="analysis-toggle-btn" id="btn-analysis-${subName}" onclick="toggleSingleAnalysis('${catName}', '${subName}', this)" title="この細分類の傾向分析を表示/非表示">💡分析</button>
+                        <button class="help-btn" onclick="openModal('${catName}', '${subName}', '${color}')" title="説明を見る">?</button>
+                    </div>
+                `;
+                subList.appendChild(subRow);
+            });
+
+            catGroup.appendChild(subList);
+            container.appendChild(catGroup);
+        });
+    }
+
+    function toggleCategoryGroup(catName, isChecked) {
+        document.querySelectorAll(`.sub-${catName}`).forEach(cb => { cb.checked = isChecked; });
+        updateFilterAndRender();
+    }
+
+    function openModal(catName, subName, color) {
+        var info = subCategoryMaster[catName][subName];
+        if (!info) return;
+
+        document.getElementById('modalTitle').innerText = `${catName}：${subName}`;
+        document.getElementById('modalDesc').innerText = info.desc;
+        document.getElementById('modalBadge').innerHTML = getShapeSvg(catName, color, 16);
+        document.getElementById('descModal').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('descModal').style.display = 'none'; }
+
+    function toggleSingleAnalysis(catName, subName, btnEl) {
+        if (activeAnalysisSubs.has(subName)) {
+            activeAnalysisSubs.delete(subName);
+            btnEl.classList.remove('active');
+        } else {
+            activeAnalysisSubs.add(subName);
+            btnEl.classList.add('active');
+        }
+        renderAnalysisOverlays();
+    }
+
+    // 6. マーカー & 傾向分析描画
+    function updateFilterAndRender() {
+        var activeFilters = [];
+        document.querySelectorAll('.sub-checkbox:checked').forEach(cb => {
+            activeFilters.push({ cat: cb.getAttribute('data-cat'), sub: cb.getAttribute('data-sub') });
+        });
+
+        currentMarkers.forEach(m => map.removeLayer(m));
+        currentMarkers = [];
+
+        var filteredData = commentsData.filter(d => activeFilters.some(f => f.cat === d.cat && f.sub === d.sub));
+
+        filteredData.forEach(item => {
+            var color = getSubColorInfo(item.cat, item.sub);
+            var shapeSvg = getShapeSvg(item.cat, color, 22);
+
+            var metaAge = item.age || "";
+            if (item.school) {
+                if (item.school === "小") metaAge += " (小学生)";
+                else if (item.school === "中高") metaAge += " (中高生)";
+                else if (item.school === "大以上") metaAge += " (大学生以上)";
+            }
+
+            var customIcon = L.divIcon({
+                className: `custom-bubble-icon`,
+                html: `
+                    <div class="custom-marker-container">
+                        <div class="radar-pulse" style="color: ${color};"></div>
+                        <div class="radar-shape">${shapeSvg}</div>
+                        <div class="speech-bubble-wrapper">
+                            <div class="speech-bubble" style="background-color: rgba(255, 255, 255, 0.95); border: 2px solid ${color};">
+                                <svg class="bubble-tip-svg" viewBox="0 0 14 9">
+                                    <polygon points="0,0 14,0 7,9" fill="rgba(255, 255, 255, 0.95)" stroke="${color}" stroke-width="2" stroke-linejoin="round" />
+                                    <line x1="1" y1="0" x2="13" y2="0" stroke="rgba(255, 255, 255, 0.95)" stroke-width="3" />
+                                </svg>
+                                <div class="bubble-header">
+                                    <span class="bubble-tag" style="background-color: ${color};">${item.sub}</span>
+                                    <span class="bubble-id">${item.id}</span>
+                                </div>
+                                <div class="bubble-comment">${item.comment}</div>
+                                <div class="bubble-meta">${item.gender} / ${metaAge}</div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                iconSize: [0, 0], iconAnchor: [0, 0]
+            });
+
+            var marker = L.marker([item.lat, item.lng], { icon: customIcon });
+
+            marker.on('mouseover', function() {
+                var el = marker.getElement();
+                if (el && !el.classList.contains('active')) el.classList.add('hovered');
+            });
+            marker.on('mouseout', function() {
+                var el = marker.getElement();
+                if (el) el.classList.remove('hovered');
+            });
+
+            marker.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                var wasActive = marker.getElement().classList.contains('active');
+                
+                document.querySelectorAll('.leaflet-marker-icon').forEach(el => {
+                    el.classList.remove('active');
+                    el.classList.remove('hovered');
+                });
+                
+                if (!wasActive) marker.getElement().classList.add('active');
+            });
+
+            marker.addTo(map);
+            currentMarkers.push(marker);
+        });
+
+        var activeSubNames = new Set(activeFilters.map(f => f.sub));
+        activeAnalysisSubs.forEach(subName => {
+            if (!activeSubNames.has(subName)) {
+                activeAnalysisSubs.delete(subName);
+                var btn = document.getElementById(`btn-analysis-${subName}`);
+                if (btn) btn.classList.remove('active');
+            }
+        });
+
+        renderAnalysisOverlays();
+    }
+
+    function renderAnalysisOverlays() {
+        Object.keys(analysisLayersMap).forEach(subName => {
+            map.removeLayer(analysisLayersMap[subName]);
+        });
+        analysisLayersMap = {};
+
+        activeAnalysisSubs.forEach(subName => {
+            var groupItems = commentsData.filter(d => d.sub === subName);
+            if (groupItems.length === 0) return;
+
+            var catName = groupItems[0].cat;
+            var masterInfo = subCategoryMaster[catName][subName];
+            if (!masterInfo || !masterInfo.analysis) return;
+
+            var color = masterInfo.color;
+            var layerGroup = L.layerGroup();
+
+            var points = groupItems.map(d => [d.lat, d.lng]);
+
+            var hullPoints = getConvexHull(points);
+            var paddedHull = padPolygon(hullPoints, 0.0004);
+            var smoothHull = smoothPolygon(paddedHull, 3);
+
+            var hullPolygon = L.polygon(smoothHull, {
+                color: color, weight: 4, opacity: 0.7, fillColor: color, fillOpacity: 0.12, smoothFactor: 1.5, interactive: false
+            });
+            layerGroup.addLayer(hullPolygon);
+
+            var centerLat = points.reduce((s, p) => s + p[0], 0) / points.length;
+            var centerLng = points.reduce((s, p) => s + p[1], 0) / points.length;
+
+            var mapCenter = map.getCenter();
+            var offsetLat = (centerLat >= mapCenter.lat) ? 0.0012 : -0.0012;
+            var offsetLng = (centerLng >= mapCenter.lng) ? 0.0018 : -0.0018;
+
+            var cardLat = centerLat + offsetLat;
+            var cardLng = centerLng + offsetLng;
+
+            var leaderLine = L.polyline([[centerLat, centerLng], [cardLat, cardLng]], {
+                color: color, weight: 2, dashArray: '4, 4', opacity: 0.85, interactive: false
+            });
+            layerGroup.addLayer(leaderLine);
+
+            var centerDot = L.circleMarker([centerLat, centerLng], {
+                radius: 4, color: color, fillColor: '#fff', fillOpacity: 1, weight: 2
+            });
+            layerGroup.addLayer(centerDot);
+
+            var cardIcon = L.divIcon({
+                className: 'custom-bubble-icon',
+                html: `
+                    <div style="position: absolute; transform: translate(-50%, -50%);">
+                        <div class="analysis-leader-card" style="border: 1.5px solid ${color};">
+                            <div class="analysis-card-title-bar" style="color: ${color};">
+                                <span>💡 傾向分析: ${subName}</span>
+                                <span style="font-size: 9px; color: #888;">(${groupItems.length}件)</span>
+                            </div>
+                            <div>${masterInfo.analysis}</div>
+                        </div>
+                    </div>
+                `,
+                iconSize: [0, 0], iconAnchor: [0, 0]
+            });
+
+            var cardMarker = L.marker([cardLat, cardLng], { icon: cardIcon, zIndexOffset: 50000 });
+            layerGroup.addLayer(cardMarker);
+
+            layerGroup.addTo(map);
+            analysisLayersMap[subName] = layerGroup;
+        });
+    }
+
+    function getConvexHull(pts) {
+        if (pts.length <= 3) return pts;
+        pts = pts.slice().sort((a, b) => a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]);
+        function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+        var lower = [];
+        for (var i = 0; i < pts.length; i++) {
+            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+            lower.push(pts[i]);
+        }
+        var upper = [];
+        for (var i = pts.length - 1; i >= 0; i--) {
+            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+            upper.push(pts[i]);
+        }
+        upper.pop(); lower.pop();
+        return lower.concat(upper);
+    }
+
+    function padPolygon(pts, padding) {
+        if (pts.length < 3) return pts;
+        var cLat = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+        var cLng = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        return pts.map(p => {
+            var dLat = p[0] - cLat;
+            var dLng = p[1] - cLng;
+            var len = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
+            return [p[0] + (dLat / len) * padding, p[1] + (dLng / len) * padding];
+        });
+    }
+
+    function smoothPolygon(pts, iterations) {
+        if (pts.length < 3) return pts;
+        var current = pts.slice();
+        for (var it = 0; it < iterations; it++) {
+            var smoothed = [];
+            for (var i = 0; i < current.length; i++) {
+                var p0 = current[i];
+                var p1 = current[(i + 1) % current.length];
+                smoothed.push([0.75 * p0[0] + 0.25 * p1[0], 0.75 * p0[1] + 0.25 * p1[1]]);
+                smoothed.push([0.25 * p0[0] + 0.75 * p1[0], 0.25 * p0[1] + 0.75 * p1[1]]);
+            }
+            current = smoothed;
+        }
+        return current;
+    }
+
+    map.on('click', function() {
+        document.querySelectorAll('.leaflet-marker-icon').forEach(el => {
+            el.classList.remove('active');
+            el.classList.remove('hovered');
+        });
+    });
+
+    function toggleAllBubbles() {
+        isBubbleVisible = !isBubbleVisible;
+        var btn = document.getElementById('toggleBubbleBtn');
+        var mapContainer = document.getElementById('map');
+
+        if (isBubbleVisible) {
+            btn.classList.add('active');
+            btn.innerText = "💬 吹き出しを非表示";
+            mapContainer.classList.add('show-bubbles');
+        } else {
+            btn.classList.remove('active');
+            btn.innerText = "💬 吹き出しを表示";
+            mapContainer.classList.remove('show-bubbles');
+        }
+    }
+
+    function toggleRadarAnimation() {
+        isRadarAnimOn = !isRadarAnimOn;
+        var btn = document.getElementById('toggleRadarBtn');
+        var body = document.body;
+
+        if (isRadarAnimOn) {
+            body.classList.remove('radar-off');
+            btn.classList.remove('off');
+            btn.innerText = "📡 アニメーション ON/OFF";
+        } else {
+            body.classList.add('radar-off');
+            btn.classList.add('off');
+            btn.innerText = "📡 アニメーション OFF中";
+        }
+    }
+
+    // 7. 画像保存機能（修正：DevicePixelRatio対応 ＋ 画面の高さを維持した 3:2 クロップ）
+    function downloadMapImage() {
+        var body = document.body;
+        var panelTitle = document.getElementById('panelTitle');
+        var layerPanel = document.getElementById('layerPanel');
+        var scaleCompassControl = document.querySelector('.leaflet-bottom.leaflet-left');
+
+        var origCenter = map.getCenter();
+        var origZoom = map.getZoom();
+
+        // 基準領域の南北方向（高さ）を最優先設定
+        var targetBounds = L.latLngBounds(
+            [32.955277, 131.886110],
+            [32.964120, 131.901422]
+        );
+
+        // まず南北が綺麗に収まるビューへフィット
+        map.fitBounds(targetBounds, { animate: false });
+
+        body.classList.add('is-capturing');
+        panelTitle.innerText = "凡例";
+
+        // 非表示のカテゴリを凡例から非表示化
+        categoryOrder.forEach(catName => {
+            var groupEl = document.querySelector(`.category-group[data-cat-group="${catName}"]`);
+            if (!groupEl) return;
+            var activeSubCount = groupEl.querySelectorAll('.sub-checkbox:checked').length;
+            if (activeSubCount > 0) {
+                groupEl.classList.remove('hide-in-legend');
+            } else {
+                groupEl.classList.add('hide-in-legend');
+            }
+        });
+
+        setTimeout(function() {
+            var viewWidth = window.innerWidth;
+            var viewHeight = window.innerHeight;
+
+            // 【縦横比 3:2（横長）計算】
+            // 縦幅（viewHeight）は100%完璧に維持し、横幅だけを 1.5 倍（3:2）に削る
+            var cropHeight = viewHeight;
+            var cropWidth = cropHeight * (3 / 2);
+
+            // もしも画面自体が 3:2 より細長い場合のフォールバック（画面幅に合わせる）
+            if (cropWidth > viewWidth) {
+                cropWidth = viewWidth;
+                cropHeight = cropWidth * (2 / 3);
+            }
+
+            // 左右対称に横幅を削るための開始位置（画面座標）
+            var cropX = (viewWidth - cropWidth) / 2;
+            var cropY = (viewHeight - cropHeight) / 2;
+
+            // クロップ画像内の四隅（端から15px）に凡例と方位・スケールを配置
+            var margin = 15;
+
+            layerPanel.style.position = 'fixed';
+            layerPanel.style.top = (cropY + margin) + 'px';
+            layerPanel.style.right = (cropX + margin) + 'px';
+            layerPanel.style.left = 'auto';
+
+            scaleCompassControl.style.position = 'fixed';
+            scaleCompassControl.style.bottom = (cropY + margin) + 'px';
+            scaleCompassControl.style.left = (cropX + margin) + 'px';
+
+            setTimeout(function() {
+                html2canvas(document.body, {
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    windowWidth: viewWidth,
+                    windowHeight: viewHeight,
+                    scrollX: 0,
+                    scrollY: 0,
+                    scale: window.devicePixelRatio || 1 // 高解像度ディスプレイの倍率を明示指定
+                }).then(function(fullCanvas) {
+                    // ディスプレイのデバイスピクセル比率を取得
+                    var dpr = window.devicePixelRatio || 1;
+
+                    // 実際のキャンバス用トリミングサイズ（物理ピクセル換算）
+                    var realCropWidth = cropWidth * dpr;
+                    var realCropHeight = cropHeight * dpr;
+                    var realCropX = cropX * dpr;
+                    var realCropY = cropY * dpr;
+
+                    var cropCanvas = document.createElement('canvas');
+                    cropCanvas.width = realCropWidth;
+                    cropCanvas.height = realCropHeight;
+                    var ctx = cropCanvas.getContext('2d');
+
+                    // 物理ピクセル座標に基づいてトリミング描画
+                    ctx.drawImage(
+                        fullCanvas,
+                        realCropX, realCropY, realCropWidth, realCropHeight,
+                        0, 0, realCropWidth, realCropHeight
+                    );
+
+                    // 保存処理
+                    var link = document.createElement('a');
+                    link.download = 'saiki_ws_map_3x2.png';
+                    link.href = cropCanvas.toDataURL("image/png");
+                    link.click();
+
+                    // 通常表示に戻す
+                    body.classList.remove('is-capturing');
+                    panelTitle.innerText = "表示レイヤー選択";
+                    
+                    // スタイルのリセット
+                    layerPanel.style.position = '';
+                    layerPanel.style.top = '';
+                    layerPanel.style.right = '';
+                    scaleCompassControl.style.position = '';
+                    scaleCompassControl.style.bottom = '';
+                    scaleCompassControl.style.left = '';
+
+                    document.querySelectorAll('.category-group').forEach(el => el.classList.remove('hide-in-legend'));
+                    map.setView(origCenter, origZoom, { animate: false });
+                });
+            }, 300);
+        }, 500);
+    }
+
+    // 初期化実行
+    buildLayerTreeUI();
+    updateFilterAndRender();
+
+</script>
+</body>
+</html>
