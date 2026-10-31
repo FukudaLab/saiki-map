@@ -28,25 +28,70 @@
             transition: all 0.2s ease;
         }
 
+        /* 方位マーク：シュッとしたデザイン */
         .compass-rose {
-            width: 36px; height: 36px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-            display: flex; justify-content: center; align-items: center;
-            font-size: 14px; font-weight: bold; color: #2c3e50;
-            margin-bottom: 6px; border: 2px solid #ddd;
-            user-select: none; position: relative;
+            width: 34px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 8px;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 3px 3px 5px 3px;
+            border-radius: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
-        .compass-rose::after {
-            content: '▲'; font-size: 8px; position: absolute;
-            top: 2px; color: #e74c3c;
+        .compass-n {
+            font-size: 11px;
+            font-weight: 900;
+            color: #000;
+            line-height: 1;
+            margin-bottom: 2px;
+            font-family: Arial, sans-serif;
         }
 
+        /* スケールバー：高さ低め＋目盛り＋上部ラベル */
         .leaflet-control-scale-line {
-            border: 2px solid #333 !important; border-top: none !important;
-            background: rgba(255, 255, 255, 0.9) !important; color: #222 !important;
-            font-weight: bold !important; font-size: 10px !important; padding: 1px 5px !important;
+            border: 2px solid #000 !important;
+            border-top: none !important;
+            background: transparent !important;
+            color: #000 !important;
+            height: 5px !important; /* 高さを低く設定 */
+            position: relative !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+            /* 内部に目盛り線（中間3本）を自動描画 */
+            background-image: 
+                linear-gradient(#000, #000),
+                linear-gradient(#000, #000),
+                linear-gradient(#000, #000) !important;
+            background-size: 1.5px 100%, 1.5px 100%, 1.5px 100% !important;
+            background-position: 25% 0, 50% 0, 75% 0 !important;
+            background-repeat: no-repeat !important;
+            margin-top: 15px !important; /* 上部の数字用スペース */
+            overflow: visible !important;
+        }
+
+        .scale-label-zero {
+            position: absolute;
+            top: -14px;
+            left: -3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #000;
+            font-family: Arial, sans-serif;
+            line-height: 1;
+        }
+
+        .scale-label-val {
+            position: absolute;
+            top: -14px;
+            right: -6px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #000;
+            font-family: Arial, sans-serif;
+            line-height: 1;
         }
 
         /* --------------------------------------------------
@@ -262,10 +307,29 @@
         maxZoom: 21
     }).addTo(map);
 
+// スケールバーの表示カスタム（目盛り・数字を上部に配置）
+    L.Control.Scale.include({
+        _updateMetric: function (maxMeters) {
+            var meters = this._getRoundNum(maxMeters),
+                label = meters < 1000 ? meters + 'm' : (meters / 1000) + 'km';
+
+            this._mScale.style.width = this._getScaleWidth(meters / maxMeters) + 'px';
+            this._mScale.innerHTML = `<span class="scale-label-zero">0</span><span class="scale-label-val">${label}</span>`;
+        }
+    });
+
     L.control.scale({ imperial: false, metric: true, position: 'bottomleft' }).addTo(map);
+
+    // 方位マークの追加（シュッとしたデザイン）
     var compassDiv = document.createElement('div');
     compassDiv.className = 'compass-rose';
-    compassDiv.innerText = 'N';
+    compassDiv.innerHTML = `
+        <div class="compass-n">N</div>
+        <svg viewBox="0 0 40 40" width="28" height="28">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#000" stroke-width="2.5"/>
+            <polygon points="20,2 15,37 25,37" fill="#000"/>
+        </svg>
+    `;
     document.querySelector('.leaflet-bottom.leaflet-left').prepend(compassDiv);
 
     // 2. マスク＆境界線
