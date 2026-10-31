@@ -18,32 +18,39 @@
         /* --------------------------------------------------
            方位マーク・スケールバー（通常時：左下）
         -------------------------------------------------- */
-        .leaflet-bottom.leaflet-left {
+.leaflet-bottom.leaflet-left {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            margin-left: 20px;
-            margin-bottom: 20px;
+            align-items: center; /* 中央揃えでコンパクトにまとめる */
+            margin-left: 15px;
+            margin-bottom: 15px;
             z-index: 9999;
             transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.7); /* 白背景（透明度高め） */
+            padding: 6px 8px 4px 8px; /* ぎりぎりサイズのパディング */
+            border-radius: 4px; /* 四角形（角丸ほんの少し） */
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
-        /* 方位マーク：シュッとしたデザイン */
+        /* 方位マーク */
         .compass-rose {
-            width: 34px;
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 2px;
             user-select: none;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 3px 3px 5px 3px;
-            border-radius: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            background: transparent; /* 個別背景を解除 */
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
         }
+        
+        /* Nの文字（太さを抑えて少し細めに） */
         .compass-n {
             font-size: 11px;
-            font-weight: 900;
+            font-weight: 600; /* 900から600に変更して細く */
             color: #000;
             line-height: 1;
             margin-bottom: 2px;
