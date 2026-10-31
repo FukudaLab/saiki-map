@@ -118,14 +118,6 @@
 
         .row-action-btns { display: flex; gap: 3px; flex-shrink: 0; }
 
-        .analysis-toggle-btn {
-            background: #ffffff; border: 1px solid #bdc3c7; border-radius: 4px;
-            padding: 1px 4px; font-size: 10px; color: #555; cursor: pointer;
-            transition: all 0.2s; display: flex; align-items: center; gap: 2px;
-        }
-        .analysis-toggle-btn:hover { background: #e8f8f5; border-color: #27ae60; color: #27ae60; }
-        .analysis-toggle-btn.active { background: #27ae60; border-color: #27ae60; color: #ffffff; font-weight: bold; }
-
         .help-btn {
             background: #f0f3f4; border: 1px solid #bdc3c7; border-radius: 50%;
             width: 16px; height: 16px; font-size: 10px; line-height: 14px; text-align: center;
@@ -152,34 +144,8 @@
         body.is-capturing .top-left-tools,
         body.is-capturing .leaflet-control-zoom,
         body.is-capturing .help-btn,
-        body.is-capturing .analysis-toggle-btn,
         body.is-capturing .category-group.hide-in-legend {
             display: none !important;
-        }
-
-        /* --------------------------------------------------
-           傾向分析①：太め半透明曲線＋引き出し線＋四角い細枠カード
-        -------------------------------------------------- */
-        .analysis-leader-card {
-            width: 200px;
-            background: rgba(255, 255, 255, 0.97);
-            border-radius: 5px;
-            padding: 8px 10px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-            font-size: 10.5px;
-            line-height: 1.4;
-            color: #2c3e50;
-            pointer-events: auto;
-        }
-        .analysis-card-title-bar {
-            font-weight: bold;
-            font-size: 11px;
-            margin-bottom: 4px;
-            padding-bottom: 3px;
-            border-bottom: 1px dashed rgba(0,0,0,0.15);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
         }
 
         /* モーダル */
@@ -314,87 +280,33 @@
         renderer: canvasRenderer, color: '#e74c3c', weight: 2, dashArray: '5, 5', fill: false
     }).addTo(map);
 
-    // 3. マスタ定義 ＋ 定性分析解説
+    // 3. マスタ定義
     var subCategoryMaster = {
         "好きな景色・場所": {
-            "公共施設・広場": { 
-                desc: "桜ホール、こども園、公園など", color: "#27ae60",
-                analysis: "桜ホール周辺にプロットが集中。「交流できる」「ガラスが開放的」など、近年の施設整備と広場が市民の憩い・交流拠点として定着。"
-            },
-            "自然・季節": { 
-                desc: "桜、動物、川など", color: "#e84393",
-                analysis: "山際通りの桜並木や城山周辺に分布。「春に桜が舞う様子」や「川の涼しさ」など日常生活の四季を感じる自然空間が高評価。"
-            },
-            "眺望・ビュースポット": { 
-                desc: "頂上からの景色、見下ろすまちなど", color: "#00cec9",
-                analysis: "城山頂上周辺に極めて強く集中。「四国まで見渡せる」「佐伯市が一望できる」など地域を象徴する一番の愛着・誇りの場。"
-            },
-            "賑わい・グルメ": { 
-                desc: "お祭り、カフェ、人が集まる様子", color: "#f1c40f",
-                analysis: "桜ホール・商店街周辺に点在。「お祭りの雰囲気」や「カフェ・飲食店」など人が集まり食を楽しむ日常的な活気が評価されている。"
-            },
-            "歴史的町並み": { 
-                desc: "石畳、やぐら門、古民家など", color: "#d35400",
-                analysis: "「歴史と文学の道」沿いに美しく連続。やぐら門・白壁・石畳が佐伯の城下町らしい風情を象徴する核心部分として定着。"
-            }
+            "公共施設・広場": { desc: "桜ホール、こども園、公園など", color: "#27ae60" },
+            "自然・季節": { desc: "桜、動物、川など", color: "#e84393" },
+            "眺望・ビュースポット": { desc: "頂上からの景色、見下ろすまちなど", color: "#00cec9" },
+            "賑わい・グルメ": { desc: "お祭り、カフェ、人が集まる様子", color: "#f1c40f" },
+            "歴史的町並み": { desc: "石畳、やぐら門、古民家など", color: "#d35400" }
         },
         "課題": {
-            "管理・衛生不足": { 
-                desc: "虫、トイレが汚い、草ボーボーなど", color: "#8e44ad",
-                analysis: "城山周辺や公共トイレ・駐車場付近に散在。「虫の発生」「トイレの老朽化・臭い」「雑草の繁茂」など日常の管理不満が目立つ。"
-            },
-            "景観の阻害": { 
-                desc: "電柱、邪魔な木、古い建物など視覚的な問題", color: "#e67e22",
-                analysis: "歴史と文学の道全域に点在。「電柱・電線が目立つ」「植栽が邪魔で櫓門が見えにくい」など景観の純度を損なう要素への指摘。"
-            },
-            "交通の危険性": { 
-                desc: "交差点、スピード、車との交錯など", color: "#c0392b",
-                analysis: "変形交差点や城山駐車場入口、通学路に集中。「スピード出し過ぎ」「歩車分離の不足」など安全上の危険性が浮き彫りに。"
-            },
-            "歩行空間の不良": { 
-                desc: "凸凹、狭い、段差、ガタガタなど物理的な道の問題", color: "#fdcb6e",
-                analysis: "石畳の通りや細い歩道に多数集中。「歩道が狭い」「根上がりや雨天時の石畳で滑る・躓く」などバリアが顕著。"
-            },
-            "魅力・機能不足": { 
-                desc: "目的地がない、寂しい、店がないなど", color: "#6c5ce7",
-                analysis: "城下町エリア全体に点在。「滞在する目的地がない」「シャッター街化」「駐車場案内のわかりにくさ」など回遊性の低さが課題。"
-            }
+            "管理・衛生不足": { desc: "虫、トイレが汚い、草ボーボーなど", color: "#8e44ad" },
+            "景観の阻害": { desc: "電柱、邪魔な木、古い建物など視覚的な問題", color: "#e67e22" },
+            "交通の危険性": { desc: "交差点、スピード、車との交錯など", color: "#c0392b" },
+            "歩行空間の不良": { desc: "凸凹、狭い、段差、ガタガタなど物理的な道の問題", color: "#fdcb6e" },
+            "魅力・機能不足": { desc: "目的地がない、寂しい、店がないなど", color: "#6c5ce7" }
         },
         "夜間景観": {
-            "課題（暗さ・危険性）": { 
-                desc: "暗い、怖い、寂しいなど", color: "#2d3436",
-                analysis: "桜ホール背後の小道や城山登山道、養賢寺付近に集中。街灯が少なく「暗くて怖い」という夜間の安心感不足が指摘されている。"
-            },
-            "要望（照らしてほしい）": { 
-                desc: "ライトアップしてほしい、照明を統一してほしいなど", color: "#f39c12",
-                analysis: "櫓門、石垣、桜並木に集積。統一感ある温かい照明演出や、幻想的なライトアップによる夜間魅力の向上に大きな期待。"
-            },
-            "良い点（魅力）": { 
-                desc: "ライトアップが綺麗、夜景が良いなど", color: "#0984e3",
-                analysis: "桜ホールの水辺イルミや城山頂上からの夜景に好評が集中。近年演出された夜景スポットが新しい地域の魅力として浸透。"
-            }
+            "課題（暗さ・危険性）": { desc: "暗い、怖い、寂しいなど", color: "#2d3436" },
+            "要望（照らしてほしい）": { desc: "ライトアップしてほしい、照明を統一してほしいなど", color: "#f39c12" },
+            "良い点（魅力）": { desc: "ライトアップが綺麗、夜景が良いなど", color: "#0984e3" }
         },
         "要望・アイデア": {
-            "イベント・ソフト事業": { 
-                desc: "祭り、アート、マンホールなど", color: "#9b59b6",
-                analysis: "観光交流館や歴史資料館周辺にプロット。「フリマ」「路面アート」「ポケモンマンホール」等、若者や家族を呼ぶソフト施策を要望。"
-            },
-            "休憩・滞在空間": { 
-                desc: "ベンチ、公園、トイレ、屋根など無料の居場所", color: "#00b894",
-                analysis: "散策ルート沿いに広く分布。「和風ベンチ」「日よけ・屋根」「綺麗なお手洗い」など、散策中に立ち寄れる滞在拠点を求める声多数。"
-            },
-            "交通・インフラ": { 
-                desc: "歩道拡幅、駐車場、バリアフリーなど", color: "#2980b9",
-                analysis: "城山登山口や駐車場周辺に分布。「バリアフリー化」「駐車場増設」「昇降支援インフラ」等アクセス性向上のアイデア。"
-            },
-            "商業・集客施設": { 
-                desc: "カフェ、スタバ、映画館、服屋など", color: "#e74c3c",
-                analysis: "大手前・桜ホール周辺に集積。「カフェ・スタバ」「映画館」「服屋」など、特に若い世代が日常的に集える店舗の誘致要望が極めて強い。"
-            },
-            "歴史・景観形成": { 
-                desc: "三の丸御殿、白壁、植栽管理など", color: "#6c5ce7",
-                analysis: "歴史と文学の道沿いに集中。「三の丸御殿の復元」「空き家活用」「桜の植え替え」等、歴史的情緒を高める本格的な景観デザイン案。"
-            }
+            "イベント・ソフト事業": { desc: "祭り、アート、マンホールなど", color: "#9b59b6" },
+            "休憩・滞在空間": { desc: "ベンチ、公園、トイレ、屋根など無料の居場所", color: "#00b894" },
+            "交通・インフラ": { desc: "歩道拡幅、駐車場、バリアフリーなど", color: "#2980b9" },
+            "商業・集客施設": { desc: "カフェ、スタバ、映画館、服屋など", color: "#e74c3c" },
+            "歴史・景観形成": { desc: "三の丸御殿、白壁、植栽管理など", color: "#6c5ce7" }
         }
     };
 
@@ -430,7 +342,7 @@
 { id: "I-012", cat: "課題", sub: "管理・衛生不足", lat: 32.9584166666666, lng: 131.891833333333, comment: "トイレが臭い", gender: "男性", age: "30~60"  },
 { id: "I-013", cat: "課題", sub: "管理・衛生不足", lat: 32.95825, lng: 131.891472222222, comment: "藤の花が毎年咲かないので切ってよいのでは", gender: "男性", age: "30~60"  },
 { id: "I-014", cat: "課題", sub: "管理・衛生不足", lat: 32.9573611111111, lng: 131.892222222222, comment: "観光客もイベントも無いのに車が一杯で停めらないのはなぜ", gender: "男性", age: "30~60"  },
-{ id: "I-015", cat: "課題", sub: "管理・衛生不足", lat: 32.9570277777777, lng: 131.891833333333, comment: "駐車場の奥の木がつながりすぎているのでゴミが多く汚い　伐採して", gender: "男性", age: "30~60"  },
+{ id: "I-015", cat: "課題", sub: "管理・衛生不足", lat: 32.9570277777777, lng: 131.891833333333, comment: "駐車場の奥の木がつながりすぎているのでゴミが多く汚い 伐採して", gender: "男性", age: "30~60"  },
 { id: "I-016", cat: "課題", sub: "管理・衛生不足", lat: 32.9571666666666, lng: 131.892166666666, comment: "駐車場の管理ができていないので活用できていない", gender: "男性", age: "60 以上"  },
 { id: "I-017", cat: "課題", sub: "景観の阻害", lat: 32.9605, lng: 131.893527777777, comment: "電柱を埋めたら道が見やすくなる", gender: "女性", age: "30~60"  },
 { id: "I-018", cat: "課題", sub: "景観の阻害", lat: 32.9578055555555, lng: 131.89225, comment: "植栽が邪魔でやぐらが見えない", gender: "男性", age: "30~60"  },
@@ -445,7 +357,7 @@
 { id: "I-027", cat: "課題", sub: "景観の阻害", lat: 32.9601944444444, lng: 131.893388888888, comment: "電柱、電線があるのは残念", gender: "男性", age: "30~60"  },
 { id: "I-028", cat: "課題", sub: "景観の阻害", lat: 32.9596944444444, lng: 131.893027777777, comment: "緑は山にたくさんあるので道には不要。困っている人もいる", gender: "男性", age: "30~60"  },
 { id: "I-029", cat: "課題", sub: "景観の阻害", lat: 32.9560833333333, lng: 131.891777777777, comment: "建物が古く見える", gender: "男性", age: "30~60"  },
-{ id: "I-030", cat: "課題", sub: "景観の阻害", lat: 32.9576388888888, lng: 131.892388888888, comment: "植え込みがあることで櫓門が見えにくい　新しい道では少なめ", gender: "女性", age: "30~60"  },
+{ id: "I-030", cat: "課題", sub: "景観の阻害", lat: 32.9576388888888, lng: 131.892388888888, comment: "植え込みがあることで櫓門が見えにくい 新しい道では少なめ", gender: "女性", age: "30~60"  },
 { id: "I-031", cat: "課題", sub: "景観の阻害", lat: 32.9571388888888, lng: 131.893444444444, comment: "歴史と文学の道の整備の際に無電柱化してほしい", gender: "男性", age: "30~60"  },
 { id: "I-032", cat: "課題", sub: "交通の危険性", lat: 32.9570277777777, lng: 131.893666666666, comment: "交差点が危ない", gender: "男性", age: "30~60"  },
 { id: "I-033", cat: "課題", sub: "交通の危険性", lat: 32.9569722222222, lng: 131.893722222222, comment: "変速交差点危ない", gender: "女性", age: "0~30", school: "大以上" },
@@ -577,7 +489,7 @@
 { id: "N-007", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9617777777777, lng: 131.894888888888, comment: "夜暗いので明るくしてほしい", gender: "男性", age: "30~60"  },
 { id: "N-008", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9565, lng: 131.893238888888, comment: "桜ホールのライトアップがものすごく綺麗（一歩別の道へ入るとかなり暗いので他の小道にもライトがあるとうれしい）", gender: "女性", age: "0~30"  },
 { id: "N-009", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9577777777777, lng: 131.892166666666, comment: "路面が暗い", gender: "女性", age: "30~60"  },
-{ id: "N-010", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9571666666666, lng: 131.894527777777, comment: "夜かなり暗い印象がある　なにか期間限定でいいから出店があれば人が来ると思う", gender: "男性", age: "30~60"  },
+{ id: "N-010", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9571666666666, lng: 131.894527777777, comment: "夜かなり暗い印象がある なにか期間限定でいいから出店があれば人が来ると思う", gender: "男性", age: "30~60"  },
 { id: "N-011", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9587222222222, lng: 131.891666666666, comment: "山道が夜でも歩けるよう照明が欲しい", gender: "男性", age: "60 以上"  },
 { id: "N-012", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9608611111111, lng: 131.890472222222, comment: "登山道に明かりがほしい", gender: "男性", age: "0~30"  },
 { id: "N-013", cat: "夜間景観", sub: "課題（暗さ・危険性）", lat: 32.9610277777777, lng: 131.893833333333, comment: "お店が無く、夜が寂しい", gender: "女性", age: "30~60"  },
@@ -732,12 +644,10 @@
 { id: "R-123", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.9576388888888, lng: 131.892388888888, comment: "病気の桜とか老木ばかりなので計画的に更新してほしい", gender: "男性", age: "30~60"  },
 { id: "R-124", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.9579444444444, lng: 131.891277777777, comment: "桜をもっと整備してほしい", gender: "女性", age: "30~60"  },
 { id: "R-125", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.9580555555555, lng: 131.893, comment: "小学校を統合し賑やかな小学校に", gender: "男性", age: "30~60"  },
-{ id: "R-126", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.9586666666666, lng: 131.892638888888, comment: "山側の植栽はいらない　桜を順次更新する", gender: "男性", age: "30~60"  },
+{ id: "R-126", cat: "要望・アイデア", sub: "歴史・景観形成", lat: 32.9586666666666, lng: 131.892638888888, comment: "山側の植栽はいらない 桜を順次更新する", gender: "男性", age: "30~60"  }
     ];
 
     var currentMarkers = [];
-    var activeAnalysisSubs = new Set();
-    var analysisLayersMap = {};
     var isBubbleVisible = false;
     var isRadarAnimOn = true;
 
@@ -796,7 +706,6 @@
                         <span>${subName} <span class="sub-count">(${count})</span></span>
                     </label>
                     <div class="row-action-btns">
-                        <button class="analysis-toggle-btn" id="btn-analysis-${subName}" onclick="toggleSingleAnalysis('${catName}', '${subName}', this)" title="この細分類の傾向分析を表示/非表示">💡分析</button>
                         <button class="help-btn" onclick="openModal('${catName}', '${subName}', '${color}')" title="説明を見る">?</button>
                     </div>
                 `;
@@ -824,18 +733,7 @@
     }
     function closeModal() { document.getElementById('descModal').style.display = 'none'; }
 
-    function toggleSingleAnalysis(catName, subName, btnEl) {
-        if (activeAnalysisSubs.has(subName)) {
-            activeAnalysisSubs.delete(subName);
-            btnEl.classList.remove('active');
-        } else {
-            activeAnalysisSubs.add(subName);
-            btnEl.classList.add('active');
-        }
-        renderAnalysisOverlays();
-    }
-
-    // 6. マーカー & 傾向分析描画
+    // 6. マーカー描画
     function updateFilterAndRender() {
         var activeFilters = [];
         document.querySelectorAll('.sub-checkbox:checked').forEach(cb => {
@@ -909,135 +807,6 @@
             marker.addTo(map);
             currentMarkers.push(marker);
         });
-
-        var activeSubNames = new Set(activeFilters.map(f => f.sub));
-        activeAnalysisSubs.forEach(subName => {
-            if (!activeSubNames.has(subName)) {
-                activeAnalysisSubs.delete(subName);
-                var btn = document.getElementById(`btn-analysis-${subName}`);
-                if (btn) btn.classList.remove('active');
-            }
-        });
-
-        renderAnalysisOverlays();
-    }
-
-    function renderAnalysisOverlays() {
-        Object.keys(analysisLayersMap).forEach(subName => {
-            map.removeLayer(analysisLayersMap[subName]);
-        });
-        analysisLayersMap = {};
-
-        activeAnalysisSubs.forEach(subName => {
-            var groupItems = commentsData.filter(d => d.sub === subName);
-            if (groupItems.length === 0) return;
-
-            var catName = groupItems[0].cat;
-            var masterInfo = subCategoryMaster[catName][subName];
-            if (!masterInfo || !masterInfo.analysis) return;
-
-            var color = masterInfo.color;
-            var layerGroup = L.layerGroup();
-
-            var points = groupItems.map(d => [d.lat, d.lng]);
-
-            var hullPoints = getConvexHull(points);
-            var paddedHull = padPolygon(hullPoints, 0.0004);
-            var smoothHull = smoothPolygon(paddedHull, 3);
-
-            var hullPolygon = L.polygon(smoothHull, {
-                color: color, weight: 4, opacity: 0.7, fillColor: color, fillOpacity: 0.12, smoothFactor: 1.5, interactive: false
-            });
-            layerGroup.addLayer(hullPolygon);
-
-            var centerLat = points.reduce((s, p) => s + p[0], 0) / points.length;
-            var centerLng = points.reduce((s, p) => s + p[1], 0) / points.length;
-
-            var mapCenter = map.getCenter();
-            var offsetLat = (centerLat >= mapCenter.lat) ? 0.0012 : -0.0012;
-            var offsetLng = (centerLng >= mapCenter.lng) ? 0.0018 : -0.0018;
-
-            var cardLat = centerLat + offsetLat;
-            var cardLng = centerLng + offsetLng;
-
-            var leaderLine = L.polyline([[centerLat, centerLng], [cardLat, cardLng]], {
-                color: color, weight: 2, dashArray: '4, 4', opacity: 0.85, interactive: false
-            });
-            layerGroup.addLayer(leaderLine);
-
-            var centerDot = L.circleMarker([centerLat, centerLng], {
-                radius: 4, color: color, fillColor: '#fff', fillOpacity: 1, weight: 2
-            });
-            layerGroup.addLayer(centerDot);
-
-            var cardIcon = L.divIcon({
-                className: 'custom-bubble-icon',
-                html: `
-                    <div style="position: absolute; transform: translate(-50%, -50%);">
-                        <div class="analysis-leader-card" style="border: 1.5px solid ${color};">
-                            <div class="analysis-card-title-bar" style="color: ${color};">
-                                <span>💡 傾向分析: ${subName}</span>
-                                <span style="font-size: 9px; color: #888;">(${groupItems.length}件)</span>
-                            </div>
-                            <div>${masterInfo.analysis}</div>
-                        </div>
-                    </div>
-                `,
-                iconSize: [0, 0], iconAnchor: [0, 0]
-            });
-
-            var cardMarker = L.marker([cardLat, cardLng], { icon: cardIcon, zIndexOffset: 50000 });
-            layerGroup.addLayer(cardMarker);
-
-            layerGroup.addTo(map);
-            analysisLayersMap[subName] = layerGroup;
-        });
-    }
-
-    function getConvexHull(pts) {
-        if (pts.length <= 3) return pts;
-        pts = pts.slice().sort((a, b) => a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]);
-        function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
-        var lower = [];
-        for (var i = 0; i < pts.length; i++) {
-            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
-            lower.push(pts[i]);
-        }
-        var upper = [];
-        for (var i = pts.length - 1; i >= 0; i--) {
-            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
-            upper.push(pts[i]);
-        }
-        upper.pop(); lower.pop();
-        return lower.concat(upper);
-    }
-
-    function padPolygon(pts, padding) {
-        if (pts.length < 3) return pts;
-        var cLat = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-        var cLng = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-        return pts.map(p => {
-            var dLat = p[0] - cLat;
-            var dLng = p[1] - cLng;
-            var len = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
-            return [p[0] + (dLat / len) * padding, p[1] + (dLng / len) * padding];
-        });
-    }
-
-    function smoothPolygon(pts, iterations) {
-        if (pts.length < 3) return pts;
-        var current = pts.slice();
-        for (var it = 0; it < iterations; it++) {
-            var smoothed = [];
-            for (var i = 0; i < current.length; i++) {
-                var p0 = current[i];
-                var p1 = current[(i + 1) % current.length];
-                smoothed.push([0.75 * p0[0] + 0.25 * p1[0], 0.75 * p0[1] + 0.25 * p1[1]]);
-                smoothed.push([0.25 * p0[0] + 0.75 * p1[0], 0.25 * p0[1] + 0.75 * p1[1]]);
-            }
-            current = smoothed;
-        }
-        return current;
     }
 
     map.on('click', function() {
@@ -1079,7 +848,7 @@
         }
     }
 
-    // 7. 画像保存機能（修正：DevicePixelRatio対応 ＋ 画面の高さを維持した 3:2 クロップ）
+    // 7. 画像保存機能
     function downloadMapImage() {
         var body = document.body;
         var panelTitle = document.getElementById('panelTitle');
@@ -1089,19 +858,16 @@
         var origCenter = map.getCenter();
         var origZoom = map.getZoom();
 
-        // 基準領域の南北方向（高さ）を最優先設定
         var targetBounds = L.latLngBounds(
             [32.955277, 131.886110],
             [32.964120, 131.901422]
         );
 
-        // まず南北が綺麗に収まるビューへフィット
         map.fitBounds(targetBounds, { animate: false });
 
         body.classList.add('is-capturing');
         panelTitle.innerText = "凡例";
 
-        // 非表示のカテゴリを凡例から非表示化
         categoryOrder.forEach(catName => {
             var groupEl = document.querySelector(`.category-group[data-cat-group="${catName}"]`);
             if (!groupEl) return;
@@ -1117,22 +883,17 @@
             var viewWidth = window.innerWidth;
             var viewHeight = window.innerHeight;
 
-            // 【縦横比 3:2（横長）計算】
-            // 縦幅（viewHeight）は100%完璧に維持し、横幅だけを 1.5 倍（3:2）に削る
             var cropHeight = viewHeight;
             var cropWidth = cropHeight * (3 / 2);
 
-            // もしも画面自体が 3:2 より細長い場合のフォールバック（画面幅に合わせる）
             if (cropWidth > viewWidth) {
                 cropWidth = viewWidth;
                 cropHeight = cropWidth * (2 / 3);
             }
 
-            // 左右対称に横幅を削るための開始位置（画面座標）
             var cropX = (viewWidth - cropWidth) / 2;
             var cropY = (viewHeight - cropHeight) / 2;
 
-            // クロップ画像内の四隅（端から15px）に凡例と方位・スケールを配置
             var margin = 15;
 
             layerPanel.style.position = 'fixed';
@@ -1152,12 +913,10 @@
                     windowHeight: viewHeight,
                     scrollX: 0,
                     scrollY: 0,
-                    scale: window.devicePixelRatio || 1 // 高解像度ディスプレイの倍率を明示指定
+                    scale: window.devicePixelRatio || 1
                 }).then(function(fullCanvas) {
-                    // ディスプレイのデバイスピクセル比率を取得
                     var dpr = window.devicePixelRatio || 1;
 
-                    // 実際のキャンバス用トリミングサイズ（物理ピクセル換算）
                     var realCropWidth = cropWidth * dpr;
                     var realCropHeight = cropHeight * dpr;
                     var realCropX = cropX * dpr;
@@ -1168,24 +927,20 @@
                     cropCanvas.height = realCropHeight;
                     var ctx = cropCanvas.getContext('2d');
 
-                    // 物理ピクセル座標に基づいてトリミング描画
                     ctx.drawImage(
                         fullCanvas,
                         realCropX, realCropY, realCropWidth, realCropHeight,
                         0, 0, realCropWidth, realCropHeight
                     );
 
-                    // 保存処理
                     var link = document.createElement('a');
                     link.download = 'saiki_ws_map_3x2.png';
                     link.href = cropCanvas.toDataURL("image/png");
                     link.click();
 
-                    // 通常表示に戻す
                     body.classList.remove('is-capturing');
                     panelTitle.innerText = "表示レイヤー選択";
                     
-                    // スタイルのリセット
                     layerPanel.style.position = '';
                     layerPanel.style.top = '';
                     layerPanel.style.right = '';
