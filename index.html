@@ -307,13 +307,14 @@
         maxZoom: 21
     }).addTo(map);
 
-// スケールバーの表示カスタム（目盛り・数字を上部に配置）
+    // スケールバーの表示カスタム（目盛り・数字を上部に配置）
     L.Control.Scale.include({
         _updateMetric: function (maxMeters) {
             var meters = this._getRoundNum(maxMeters),
                 label = meters < 1000 ? meters + 'm' : (meters / 1000) + 'km';
 
-            this._mScale.style.width = this._getScaleWidth(meters / maxMeters) + 'px';
+            var width = Math.round(this.options.maxWidth * (meters / maxMeters));
+            this._mScale.style.width = width + 'px';
             this._mScale.innerHTML = `<span class="scale-label-zero">0</span><span class="scale-label-val">${label}</span>`;
         }
     });
